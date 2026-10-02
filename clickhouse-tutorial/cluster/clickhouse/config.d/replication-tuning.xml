@@ -1,0 +1,6 @@
+<clickhouse>
+    <merge_tree>
+        <!-- how many recent insert blocks are remembered for idempotent retries -->
+        <replicated_deduplication_window>1000</replicated_deduplication_window>
+    </merge_tree>
+</clickhouse>

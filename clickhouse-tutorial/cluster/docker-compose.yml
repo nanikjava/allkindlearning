@@ -1,0 +1,108 @@
+# 2 shards x 2 replicas + 3-node ClickHouse Keeper ensemble.
+#   docker compose up -d --wait
+#   docker compose exec ch-s1r1 clickhouse-client --password learn
+name: ch-cluster
+
+x-keeper: &keeper
+  image: clickhouse/clickhouse-keeper:25.8
+  volumes:
+    - ./keeper/keeper.xml:/etc/clickhouse-keeper/keeper_config.xml:ro
+  healthcheck:
+    test: ["CMD-SHELL", "echo ruok | nc -w 2 localhost 9181 | grep -q imok || clickhouse-keeper-client -h localhost -p 9181 -q 'ls /' >/dev/null"]
+    interval: 5s
+    timeout: 3s
+    retries: 30
+
+x-clickhouse: &clickhouse
+  image: clickhouse/clickhouse-server:25.8
+  environment: &ch-env
+    CLICKHOUSE_USER: default
+    CLICKHOUSE_PASSWORD: learn
+    CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+  ulimits:
+    nofile: { soft: 262144, hard: 262144 }
+  depends_on:
+    keeper1: { condition: service_healthy }
+    keeper2: { condition: service_healthy }
+    keeper3: { condition: service_healthy }
+  healthcheck:
+    test: ["CMD", "clickhouse-client", "--password", "learn", "-q", "SELECT 1"]
+    interval: 5s
+    timeout: 3s
+    retries: 30
+
+services:
+  keeper1:
+    <<: *keeper
+    hostname: keeper1
+    environment: { KEEPER_ID: "1" }
+    volumes: [ "./keeper/keeper.xml:/etc/clickhouse-keeper/keeper_config.xml:ro", "keeper1:/var/lib/clickhouse-keeper" ]
+  keeper2:
+    <<: *keeper
+    hostname: keeper2
+    environment: { KEEPER_ID: "2" }
+    volumes: [ "./keeper/keeper.xml:/etc/clickhouse-keeper/keeper_config.xml:ro", "keeper2:/var/lib/clickhouse-keeper" ]
+  keeper3:
+    <<: *keeper
+    hostname: keeper3
+    environment: { KEEPER_ID: "3" }
+    volumes: [ "./keeper/keeper.xml:/etc/clickhouse-keeper/keeper_config.xml:ro", "keeper3:/var/lib/clickhouse-keeper" ]
+
+  ch-s1r1:
+    <<: *clickhouse
+    hostname: ch-s1r1
+    environment: { <<: *ch-env, SHARD: "01", REPLICA: "ch-s1r1" }
+    ports: [ "8123:8123", "9001:9000", "9363:9363" ]
+    volumes:
+      - ./clickhouse/config.d/cluster.xml:/etc/clickhouse-server/config.d/cluster.xml:ro
+      - ./clickhouse/config.d/replication-tuning.xml:/etc/clickhouse-server/config.d/replication-tuning.xml:ro
+      - ../lessons:/lessons:ro
+      - ../data:/data:ro
+      - backups:/backups
+      - s1r1:/var/lib/clickhouse
+  ch-s1r2:
+    <<: *clickhouse
+    hostname: ch-s1r2
+    environment: { <<: *ch-env, SHARD: "01", REPLICA: "ch-s1r2" }
+    ports: [ "8124:8123", "9002:9000" ]
+    volumes:
+      - ./clickhouse/config.d/cluster.xml:/etc/clickhouse-server/config.d/cluster.xml:ro
+      - ./clickhouse/config.d/replication-tuning.xml:/etc/clickhouse-server/config.d/replication-tuning.xml:ro
+      - ../lessons:/lessons:ro
+      - ../data:/data:ro
+      - backups:/backups
+      - s1r2:/var/lib/clickhouse
+  ch-s2r1:
+    <<: *clickhouse
+    hostname: ch-s2r1
+    environment: { <<: *ch-env, SHARD: "02", REPLICA: "ch-s2r1" }
+    ports: [ "8125:8123", "9003:9000" ]
+    volumes:
+      - ./clickhouse/config.d/cluster.xml:/etc/clickhouse-server/config.d/cluster.xml:ro
+      - ./clickhouse/config.d/replication-tuning.xml:/etc/clickhouse-server/config.d/replication-tuning.xml:ro
+      - ../lessons:/lessons:ro
+      - ../data:/data:ro
+      - backups:/backups
+      - s2r1:/var/lib/clickhouse
+  ch-s2r2:
+    <<: *clickhouse
+    hostname: ch-s2r2
+    environment: { <<: *ch-env, SHARD: "02", REPLICA: "ch-s2r2" }
+    ports: [ "8126:8123", "9004:9000" ]
+    volumes:
+      - ./clickhouse/config.d/cluster.xml:/etc/clickhouse-server/config.d/cluster.xml:ro
+      - ./clickhouse/config.d/replication-tuning.xml:/etc/clickhouse-server/config.d/replication-tuning.xml:ro
+      - ../lessons:/lessons:ro
+      - ../data:/data:ro
+      - backups:/backups
+      - s2r2:/var/lib/clickhouse
+
+volumes:
+  keeper1: {}
+  keeper2: {}
+  keeper3: {}
+  s1r1: {}
+  s1r2: {}
+  s2r1: {}
+  s2r2: {}
+  backups: {}

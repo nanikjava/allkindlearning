@@ -1,0 +1,178 @@
+<title>Understanding Compression Codecs</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono&display=swap">
+<style>
+/* Layout: single reading column; results as scaled bars; SQL in scrollable blocks */
+:root{--bg:#f7f8fa;--fg:#1c2330;--muted:#5b6474;--line:#d9dee7;--accent:#1f6f5c;--panel:#ffffff;--code:#eef1f5;
+--display:"Fraunces",Georgia,serif;--body:"Source Sans 3",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12161d;--fg:#e4e8ef;--muted:#9aa4b4;--line:#2c3440;--accent:#5fc3a6;--panel:#1a2029;--code:#1f2631;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12161d;--fg:#e4e8ef;--muted:#9aa4b4;--line:#2c3440;--accent:#5fc3a6;--panel:#1a2029;--code:#1f2631;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font:17px/1.6 var(--body)}
+main{max-width:880px;margin:0 auto;padding-block:40px 80px;padding-inline:20px}
+h1{font-family:var(--display);font-size:2.3rem;line-height:1.15;text-wrap:balance;margin:0 0 .6rem}
+h2{font-family:var(--display);font-size:1.6rem;margin:3rem 0 .8rem;text-wrap:balance;border-top:1px solid var(--line);padding-top:1.6rem}
+h3{font-size:1.15rem;margin:2rem 0 .5rem;color:var(--accent)}
+p,li{max-width:68ch} a{color:var(--accent)} hr{display:none}
+code{font-family:var(--mono);font-size:.85em;background:var(--code);padding:.1em .35em;border-radius:4px}
+pre{background:var(--code);padding:14px 16px;border-radius:8px;overflow-x:auto;line-height:1.45} pre code{background:none;padding:0}
+.tw{overflow-x:auto;margin:1rem 0} table{border-collapse:collapse;font-size:.92rem;min-width:100%}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top} th{color:var(--muted);font-weight:600;font-size:.8rem;letter-spacing:.04em;text-transform:uppercase}
+.fig{margin:1.2rem 0;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px;overflow-x:auto}
+.fig svg{display:block;max-width:100%;height:auto}
+.eyebrow{color:var(--muted);font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;margin-bottom:0}
+.bars{display:grid;gap:10px;margin:1rem 0}
+.bar{display:grid;grid-template-columns:minmax(0,13rem) 1fr;gap:12px;align-items:center;font-size:.9rem}
+.bar .track{background:var(--code);border-radius:4px;height:22px;position:relative;min-width:0}
+.bar .fill{height:100%;border-radius:4px;background:var(--muted);opacity:.55}
+.bar .fill.win{background:var(--accent);opacity:1}
+.bar .v{position:absolute;left:8px;top:2px;font-family:var(--mono);font-size:.78rem;color:var(--fg)}
+.note{color:var(--muted);font-size:.92rem}
+.kbd{font-family:var(--mono)}
+</style>
+<main>
+<p class="eyebrow">ClickHouse · other docs</p>
+<h1>Understanding compression codecs</h1>
+<p>A codec decides how ClickHouse encodes a column before writing it to disk. The right one can shrink a column from
+tens of megabytes to kilobytes: less disk, less I/O per query, faster scans. This page explains the codec categories,
+when to use each, and a test on 10 million rows with the real results.</p>
+
+<h2 id="how">How codecs work: a chain of steps</h2>
+<p>Codecs are set per column and can be chained. The usual chain has two steps:</p>
+<ol>
+<li><strong>A specialised codec</strong> transforms the values so they are easier to compress (for example, turning timestamps into small differences).</li>
+<li><strong>A general-purpose compressor</strong> then shrinks the resulting bytes.</li>
+</ol>
+<pre><code>event_time DateTime64(3) CODEC(Delta, ZSTD(1))
+--                             step 1 ^   ^ step 2</code></pre>
+<p>Without a <span class="kbd">CODEC</span> clause a column uses the server default, <span class="kbd">LZ4</span>. One table can mix codecs freely.</p>
+
+<h2 id="categories">Codec categories</h2>
+
+<h3>1. General-purpose compressors</h3>
+<p>They work on any bytes. Use one alone, or as the last step after a specialised codec.</p>
+<div class="tw"><table><thead><tr><th>Codec</th><th>What it does</th><th>Use case</th></tr></thead><tbody>
+<tr><td><code>LZ4</code> (default)</td><td>Very fast compression and decompression, moderate ratio</td><td>Hot data queried constantly, where CPU matters more than disk</td></tr>
+<tr><td><code>LZ4HC(level)</code></td><td>Slower to write, better ratio, reads as fast as LZ4</td><td>Data written once and read often</td></tr>
+<tr><td><code>ZSTD(level)</code></td><td>Better ratio than LZ4 for a bit more CPU. Levels 1–3 are common; higher for cold data</td><td>Most columns, especially strings and anything after a specialised codec</td></tr>
+<tr><td><code>NONE</code></td><td>No compression</td><td>Data that is already compressed or truly random</td></tr>
+</tbody></table></div>
+
+<h3>2. Specialised codecs (value transformations)</h3>
+<p>They only help when the data has the shape they expect. Always follow them with a general compressor.</p>
+<div class="tw"><table><thead><tr><th>Codec</th><th>What it does to the values</th><th>Use case</th></tr></thead><tbody>
+<tr><td><code>Delta</code></td><td>Stores the difference from the previous value: <span class="kbd">10:00:00, 10:00:10, 10:00:20</span> → <span class="kbd">10:00:00, +10, +10</span></td><td>Sorted timestamps, increasing IDs, counters</td></tr>
+<tr><td><code>DoubleDelta</code></td><td>Stores the change in the difference: <span class="kbd">+10, +10, +10</span> → <span class="kbd">0, 0, 0</span></td><td>Perfectly regular series: metrics sampled every N seconds, monotonic counters</td></tr>
+<tr><td><code>T64</code></td><td>Packs each block of integers into only the bits the largest value needs (0–30000 needs 15 bits, not 32)</td><td>Integers using a small part of their type's range: durations, quantities, status codes</td></tr>
+<tr><td><code>GCD</code></td><td>Divides every value by their greatest common divisor: <span class="kbd">500, 1500, 2500</span> → <span class="kbd">1, 3, 5</span></td><td>Amounts in fixed steps: prices in cents rounded to 5, sizes in 4 KB blocks</td></tr>
+<tr><td><code>Gorilla</code></td><td>XORs each float with the previous one; slowly changing values leave mostly zero bits</td><td>Gauges and sensors: temperature, CPU %, price ticks</td></tr>
+<tr><td><code>FPC</code></td><td>Predicts the next float from earlier ones and stores only the error</td><td>Floating-point data in general, scientific measurements</td></tr>
+</tbody></table></div>
+
+<h3>3. Encoding through data types (not codecs, same goal)</h3>
+<div class="tw"><table><thead><tr><th>Technique</th><th>Use case</th></tr></thead><tbody>
+<tr><td><code>LowCardinality(String)</code></td><td>Dictionary encoding for columns with fewer than ~10k distinct values: country, event type, device</td></tr>
+<tr><td>Smaller types (<code>UInt16</code> instead of <code>UInt32</code>, <code>DateTime</code> instead of <code>DateTime64</code>)</td><td>Values that fit. Halving the type halves the raw size before any codec runs</td></tr>
+<tr><td><code>Enum8</code> / <code>Enum16</code></td><td>A fixed, known set of string values</td></tr>
+</tbody></table></div>
+
+<h3>4. Encryption codecs</h3>
+<p><code>AES_128_GCM_SIV</code> and <code>AES_256_GCM_SIV</code> encrypt a column at rest, with keys set in the server
+config. Use them for sensitive columns such as emails or personal data. Put compression before encryption in the chain,
+because encrypted bytes don't compress.</p>
+
+<h2 id="test">The test: each codec on the data it is built for</h2>
+<p>Run on ClickHouse 25.8 (the single node from Lesson 01), 10 million rows. Each specialised codec is compared with the
+default <span class="kbd">LZ4</span> on exactly the same values:</p>
+<ul>
+<li><strong>Timestamps:</strong> one reading every 10 seconds, perfectly regular.</li>
+<li><strong>Temperature:</strong> a slow sine wave plus random jitter on every reading (<span class="kbd">Float64</span>).</li>
+<li><strong>Durations:</strong> random 0–30000 stored in <span class="kbd">UInt32</span>.</li>
+<li><strong>Prices in cents:</strong> random, but always a multiple of 500, stored in <span class="kbd">UInt64</span>.</li>
+</ul>
+
+<h3>The SQL</h3>
+<pre><code>-- Lesson 02 / extra: each specialised codec on 10M rows of data it is designed for.
+-- Run: ch --queries-file /lessons/02-schema-design/05_specialised_codecs.sql
+DROP TABLE IF EXISTS default.codec_demo;
+CREATE TABLE default.codec_demo (
+  ts_lz4        DateTime64(3) CODEC(LZ4),
+  ts_delta      DateTime64(3) CODEC(Delta, ZSTD(1)),
+  ts_dd         DateTime64(3) CODEC(DoubleDelta, ZSTD(1)),
+  temp_lz4      Float64 CODEC(LZ4),
+  temp_gorilla  Float64 CODEC(Gorilla, ZSTD(1)),
+  temp_fpc      Float64 CODEC(FPC, ZSTD(1)),
+  dur_lz4       UInt32 CODEC(LZ4),
+  dur_t64       UInt32 CODEC(T64, ZSTD(1)),
+  cents_lz4     UInt64 CODEC(LZ4),
+  cents_gcd     UInt64 CODEC(GCD, ZSTD(1)),
+  cents_zstd    UInt64 CODEC(ZSTD(1))
+) ENGINE = MergeTree ORDER BY tuple();
+INSERT INTO default.codec_demo SELECT
+  toDateTime64(&#x27;2026-07-01 00:00:00&#x27;,3) + toIntervalMillisecond(number*10000) AS t,
+  t, t,
+  20 + 5*sin(number/5000) + (cityHash64(number)%10)/100 AS temp, temp, temp,
+  toUInt32(cityHash64(number,1)%30000) AS d, d,
+  (cityHash64(number,2)%10000)*500 AS c, c, c
+FROM numbers(10000000);
+OPTIMIZE TABLE default.codec_demo FINAL;
+SELECT name, compression_codec AS codec, formatReadableSize(data_uncompressed_bytes) AS raw, formatReadableSize(data_compressed_bytes) AS on_disk, round(data_uncompressed_bytes/data_compressed_bytes,1) AS ratio
+FROM system.columns WHERE table=&#x27;codec_demo&#x27; AND database=&#x27;default&#x27; FORMAT PrettyCompactMonoBlock;
+</code></pre>
+<p class="note">Run it with <span class="kbd">clickhouse-client --password learn --queries-file 05_specialised_codecs.sql</span>
+(the same SQL is in <span class="kbd">lessons/02-schema-design/</span>). <span class="kbd">OPTIMIZE … FINAL</span> merges all parts first so the sizes are stable.</p>
+
+<h3>Results</h3>
+<div class="tw"><table><thead><tr><th>Column</th><th>Codec</th><th>Raw</th><th>On disk</th><th>Ratio</th></tr></thead><tbody>
+<tr><td>ts_lz4</td><td>LZ4</td><td>76.29 MiB</td><td>49.18 MiB</td><td>1.6×</td></tr>
+<tr><td>ts_delta</td><td>Delta, ZSTD(1)</td><td>76.29 MiB</td><td><strong>94.20 KiB</strong></td><td><strong>829×</strong></td></tr>
+<tr><td>ts_dd</td><td>DoubleDelta, ZSTD(1)</td><td>76.29 MiB</td><td><strong>95.39 KiB</strong></td><td><strong>819×</strong></td></tr>
+<tr><td>temp_lz4</td><td>LZ4</td><td>76.29 MiB</td><td>76.62 MiB</td><td>1.0×</td></tr>
+<tr><td>temp_gorilla</td><td>Gorilla, ZSTD(1)</td><td>76.29 MiB</td><td>62.97 MiB</td><td>1.2×</td></tr>
+<tr><td>temp_fpc</td><td>FPC, ZSTD(1)</td><td>76.29 MiB</td><td>60.04 MiB</td><td>1.3×</td></tr>
+<tr><td>dur_lz4</td><td>LZ4</td><td>38.15 MiB</td><td>35.88 MiB</td><td>1.1×</td></tr>
+<tr><td>dur_t64</td><td>T64, ZSTD(1)</td><td>38.15 MiB</td><td><strong>17.92 MiB</strong></td><td><strong>2.1×</strong></td></tr>
+<tr><td>cents_lz4</td><td>LZ4</td><td>76.29 MiB</td><td>43.50 MiB</td><td>1.8×</td></tr>
+<tr><td>cents_zstd</td><td>ZSTD(1)</td><td>76.29 MiB</td><td>28.98 MiB</td><td>2.6×</td></tr>
+<tr><td>cents_gcd</td><td>GCD, ZSTD(1)</td><td>76.29 MiB</td><td><strong>17.90 MiB</strong></td><td><strong>4.3×</strong></td></tr>
+</tbody></table></div>
+<p><strong>On-disk size in MiB (shorter is better)</strong></p><div class="bars"><div class="bar"><span>Timestamps · LZ4</span><div class="track"><div class="fill" style="width:64.2%"></div><span class="v">49.18 MiB</span></div></div><div class="bar"><span>Timestamps · Delta+ZSTD</span><div class="track"><div class="fill win" style="width:0.6%"></div><span class="v">0.092 MiB</span></div></div><div class="bar"><span>Timestamps · DoubleDelta+ZSTD</span><div class="track"><div class="fill win" style="width:0.6%"></div><span class="v">0.093 MiB</span></div></div><div class="bar"><span>Temperature · LZ4</span><div class="track"><div class="fill" style="width:100.0%"></div><span class="v">76.62 MiB</span></div></div><div class="bar"><span>Temperature · Gorilla+ZSTD</span><div class="track"><div class="fill win" style="width:82.2%"></div><span class="v">62.97 MiB</span></div></div><div class="bar"><span>Temperature · FPC+ZSTD</span><div class="track"><div class="fill win" style="width:78.4%"></div><span class="v">60.04 MiB</span></div></div><div class="bar"><span>Duration · LZ4</span><div class="track"><div class="fill" style="width:46.8%"></div><span class="v">35.88 MiB</span></div></div><div class="bar"><span>Duration · T64+ZSTD</span><div class="track"><div class="fill win" style="width:23.4%"></div><span class="v">17.92 MiB</span></div></div><div class="bar"><span>Cents · LZ4</span><div class="track"><div class="fill" style="width:56.8%"></div><span class="v">43.5 MiB</span></div></div><div class="bar"><span>Cents · ZSTD</span><div class="track"><div class="fill" style="width:37.8%"></div><span class="v">28.98 MiB</span></div></div><div class="bar"><span>Cents · GCD+ZSTD</span><div class="track"><div class="fill win" style="width:23.4%"></div><span class="v">17.9 MiB</span></div></div></div>
+
+<h3>What the results show</h3>
+<ul>
+<li><strong>Timestamps are the big win.</strong> Delta turns a regular series into the same small number repeated, which ZSTD reduces to almost nothing: 49 MiB to 94 KiB. DoubleDelta matches it here and pulls ahead when gaps vary slightly but steadily.</li>
+<li><strong>T64 halved the durations</strong> by storing 15 bits per value instead of 32. Changing the type to <span class="kbd">UInt16</span> has a similar effect.</li>
+<li><strong>GCD beat plain ZSTD</strong> on prices (17.9 vs 29 MiB) because every value shrank by a factor of 500 first.</li>
+<li><strong>Gorilla and FPC gained little</strong> because the test added random jitter to every temperature reading. Random noise defeats every codec; smooth real sensor data gains much more.</li>
+</ul>
+
+<h2 id="choose">How to choose a codec</h2>
+<div class="tw"><table><thead><tr><th>Column looks like…</th><th>Start with</th></tr></thead><tbody>
+<tr><td>Timestamps or increasing numbers</td><td><code>CODEC(Delta, ZSTD(1))</code>, or <code>DoubleDelta</code> for regular intervals</td></tr>
+<tr><td>Small-range integers</td><td>The smallest fitting type, or <code>CODEC(T64, ZSTD(1))</code></td></tr>
+<tr><td>Integers in fixed steps</td><td><code>CODEC(GCD, ZSTD(1))</code></td></tr>
+<tr><td>Slowly changing floats</td><td><code>CODEC(Gorilla, ZSTD(1))</code> or <code>FPC</code></td></tr>
+<tr><td>Repeated strings, few distinct values</td><td><code>LowCardinality(String)</code></td></tr>
+<tr><td>Free text, URLs, JSON</td><td><code>CODEC(ZSTD(3))</code></td></tr>
+<tr><td>UUIDs, hashes, random IDs</td><td>Leave the default: nothing compresses them</td></tr>
+</tbody></table></div>
+
+<h3>Changing a codec on an existing table</h3>
+<pre><code>ALTER TABLE shop.events MODIFY COLUMN event_time DateTime64(3) CODEC(Delta, ZSTD(1));
+-- New parts use the new codec; existing parts are rewritten as they merge.
+-- To rewrite everything now (heavy on big tables):
+OPTIMIZE TABLE shop.events FINAL;</code></pre>
+
+<h3>Measure before and after</h3>
+<pre><code>SELECT name, compression_codec,
+       formatReadableSize(data_compressed_bytes) AS on_disk,
+       round(data_uncompressed_bytes / data_compressed_bytes, 1) AS ratio
+FROM system.columns
+WHERE database = &#x27;shop&#x27; AND table = &#x27;events&#x27;
+ORDER BY data_compressed_bytes DESC;</code></pre>
+<p>Always test on your own data. The shape of the real values decides which codec wins, as the temperature result shows.</p>
+
+<h2 id="more">Further reading</h2>
+<ul>
+<li><a href="https://clickhouse.com/docs/sql-reference/statements/create/table#column_compression_codec" target="_blank" rel="noopener">ClickHouse docs: column compression codecs</a></li>
+<li>Tutorial: Lesson 02, experiment 2 (types and codecs)</li>
+</ul>
+</main>

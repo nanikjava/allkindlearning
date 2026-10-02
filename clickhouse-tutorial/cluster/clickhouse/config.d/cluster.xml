@@ -1,0 +1,63 @@
+<clickhouse>
+    <logger><level>information</level></logger>
+
+    <!-- Per-node identity comes from env vars set in docker-compose.yml.
+         {shard} and {replica} are substituted into ReplicatedMergeTree paths. -->
+    <macros>
+        <cluster>prod</cluster>
+        <shard from_env="SHARD"/>
+        <replica from_env="REPLICA"/>
+    </macros>
+
+    <remote_servers>
+        <prod>
+            <!-- shared secret authenticates node-to-node queries; set a real one in production -->
+            <secret>change-me-inter-server-secret</secret>
+            <shard>
+                <!-- true: Distributed writes to ONE replica, ReplicatedMergeTree copies it to the others -->
+                <internal_replication>true</internal_replication>
+                <replica><host>ch-s1r1</host><port>9000</port></replica>
+                <replica><host>ch-s1r2</host><port>9000</port></replica>
+            </shard>
+            <shard>
+                <internal_replication>true</internal_replication>
+                <replica><host>ch-s2r1</host><port>9000</port></replica>
+                <replica><host>ch-s2r2</host><port>9000</port></replica>
+            </shard>
+        </prod>
+    </remote_servers>
+
+    <zookeeper>
+        <node><host>keeper1</host><port>9181</port></node>
+        <node><host>keeper2</host><port>9181</port></node>
+        <node><host>keeper3</host><port>9181</port></node>
+        <session_timeout_ms>30000</session_timeout_ms>
+    </zookeeper>
+
+    <distributed_ddl>
+        <path>/clickhouse/task_queue/ddl</path>
+    </distributed_ddl>
+
+    <!-- Lesson 07: a disk that all nodes mount at /backups (shared volume) -->
+    <storage_configuration>
+        <disks>
+            <backups>
+                <type>local</type>
+                <path>/backups/</path>
+            </backups>
+        </disks>
+    </storage_configuration>
+    <backups>
+        <allowed_disk>backups</allowed_disk>
+        <allowed_path>/backups/</allowed_path>
+    </backups>
+
+    <!-- Lesson 08: Prometheus endpoint -->
+    <prometheus>
+        <endpoint>/metrics</endpoint>
+        <port>9363</port>
+        <metrics>true</metrics>
+        <events>true</events>
+        <asynchronous_metrics>true</asynchronous_metrics>
+    </prometheus>
+</clickhouse>

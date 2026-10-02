@@ -1,0 +1,34 @@
+# Single-node ClickHouse for lessons 01-04.
+#   docker compose up -d
+#   docker compose exec clickhouse clickhouse-client --password learn
+name: ch-single
+
+services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:25.8
+    container_name: ch-single
+    hostname: ch-single
+    environment:
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: learn
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"   # lets `default` run CREATE USER / GRANT
+    ports:
+      - "8123:8123"   # HTTP interface (curl, Grafana, JDBC)
+      - "9000:9000"   # native TCP protocol (clickhouse-client, clickhouse-go)
+    ulimits:
+      nofile: { soft: 262144, hard: 262144 }
+    volumes:
+      - ch-data:/var/lib/clickhouse
+      - ch-logs:/var/log/clickhouse-server
+      - ./config/logging.xml:/etc/clickhouse-server/config.d/logging.xml:ro
+      - ../lessons:/lessons:ro     # lesson SQL: --queries-file /lessons/...
+      - ../data:/data:ro           # shared ShopStream generators
+    healthcheck:
+      test: ["CMD", "clickhouse-client", "--password", "learn", "-q", "SELECT 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+volumes:
+  ch-data:
+  ch-logs:

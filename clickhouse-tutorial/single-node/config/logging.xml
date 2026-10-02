@@ -1,0 +1,6 @@
+<clickhouse>
+    <!-- Keep the lab quiet: 'information' instead of the default 'trace'. -->
+    <logger>
+        <level>information</level>
+    </logger>
+</clickhouse>

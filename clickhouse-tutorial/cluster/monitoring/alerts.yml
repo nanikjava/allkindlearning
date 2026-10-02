@@ -1,0 +1,25 @@
+groups:
+  - name: clickhouse
+    rules:
+      - alert: ClickHouseDown
+        expr: up{job="clickhouse"} == 0
+        for: 1m
+      - alert: ReadonlyReplica
+        expr: ClickHouseMetrics_ReadonlyReplica > 0
+        for: 1m
+        annotations: { summary: "Replica lost Keeper session: inserts are failing" }
+      - alert: ReplicationLag
+        expr: ClickHouseAsyncMetrics_ReplicasMaxAbsoluteDelay > 300
+        for: 5m
+      - alert: TooManyParts
+        expr: ClickHouseAsyncMetrics_MaxPartCountForPartition > 300
+        for: 5m
+        annotations: { summary: "Inserts too small or merges falling behind; TOO_MANY_PARTS at 3000" }
+      - alert: DistributedQueueGrowing
+        expr: ClickHouseMetrics_DistributedFilesToInsert > 100
+        for: 10m
+      - alert: DiskAlmostFull
+        expr: ClickHouseAsyncMetrics_FilesystemMainPathAvailableBytes / ClickHouseAsyncMetrics_FilesystemMainPathTotalBytes < 0.15
+        for: 5m
+      - alert: KeeperSessionExpired
+        expr: increase(ClickHouseProfileEvents_ZooKeeperHardwareExceptions[5m]) > 10
