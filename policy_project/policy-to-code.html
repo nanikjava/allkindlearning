@@ -1,0 +1,343 @@
+<title>From Policy to Code</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: four stages down a spine; each stage = explanation + tools on the left, the real artifact on the right. Stage 4 expands into its own pipeline. */
+:root{
+  --bg:#f6f7f9; --surface:#ffffff; --fg:#1b2230; --muted:#5a6475; --line:#dde1e8;
+  --accent:#1f5fa8; --accent-soft:#e6eef8; --tag:#eef0f4; --code-bg:#f1f3f7; --ok:#2f7d4f; --stop:#b23a3a;
+  --display:"IBM Plex Serif",Georgia,serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12161d; --surface:#1a1f28; --fg:#e4e8ef; --muted:#9aa4b5; --line:#2c3340;
+  --accent:#7fb0ec; --accent-soft:#1d2a3c; --tag:#232a36; --code-bg:#161b23; --ok:#6fc594; --stop:#ec8b8b; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12161d; --surface:#1a1f28; --fg:#e4e8ef; --muted:#9aa4b5; --line:#2c3340;
+  --accent:#7fb0ec; --accent-soft:#1d2a3c; --tag:#232a36; --code-bg:#161b23; --ok:#6fc594; --stop:#ec8b8b; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.55;padding-inline:16px;padding-block:32px 64px}
+.wrap{max-width:1120px;margin:0 auto;display:flex;flex-direction:column;gap:40px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
+h1{font-size:2rem;font-weight:600} h2{font-size:1.3rem;font-weight:600} h3{font-size:1rem;font-weight:600}
+p{margin:0;max-width:70ch}
+.lede{color:var(--muted);font-size:1.02rem}
+.eyebrow{font-family:var(--mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+code{font-family:var(--mono);font-size:.85em;background:var(--tag);padding:1px 5px;border-radius:3px}
+.flow{border-left:2px solid var(--line);margin-left:6px;display:flex;flex-direction:column}
+.stage{position:relative;padding:0 0 44px 24px;display:flex;flex-direction:column;gap:16px}
+.stage:last-child{padding-bottom:0}
+.stage::before{content:"";position:absolute;left:-7px;top:6px;width:12px;height:12px;border-radius:50%;background:var(--bg);border:2px solid var(--accent)}
+.row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:20px}
+@media (max-width:780px){.row{grid-template-columns:minmax(0,1fr)}}
+.info{display:flex;flex-direction:column;gap:10px;min-width:0}
+.info ul{margin:0;padding-left:1.1em;font-size:.9rem;display:flex;flex-direction:column;gap:5px}
+.tools{display:flex;flex-direction:column;gap:6px;background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:10px 12px;font-size:.85rem}
+.tools b{font-weight:600}
+.tools .t{display:grid;grid-template-columns:7.5em 1fr;gap:8px}
+.tools .k{color:var(--muted);font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;padding-top:2px}
+.art{display:flex;flex-direction:column;gap:6px;min-width:0}
+.cap{font-family:var(--mono);font-size:.75rem;color:var(--muted)}
+pre{margin:0;background:var(--code-bg);border:1px solid var(--line);border-radius:6px;padding:12px 14px;overflow-x:auto;font-family:var(--mono);font-size:.76rem;line-height:1.55}
+.c{color:var(--muted)}
+.ok{color:var(--ok)} .stop{color:var(--stop)}
+.pipe{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px;counter-reset:p}
+.pipe>li{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px 16px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.5fr);gap:18px;counter-increment:p}
+@media (max-width:780px){.pipe>li{grid-template-columns:minmax(0,1fr)}}
+.pipe h3::before{content:"4." counter(p) "  ";font-family:var(--mono);color:var(--accent);font-size:.85rem}
+.pipe p{font-size:.9rem}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:680px;font-size:.88rem}
+th,td{text-align:left;vertical-align:top;padding:9px 12px;border-bottom:1px solid var(--line)}
+th{font-weight:600;font-size:.76rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);background:var(--tag)}
+tr:last-child td{border-bottom:0}
+.note{background:var(--accent-soft);border-radius:6px;padding:12px 16px;font-size:.9rem;max-width:none}
+</style>
+
+<div class="wrap">
+<header style="display:flex;flex-direction:column;gap:10px">
+  <div class="eyebrow">POL-AI-003 · authoring to implementation</div>
+  <h1>From Policy to Code</h1>
+  <p class="lede">What a policy looks like at each step from the moment someone writes it to the moment it becomes code the gateway runs, and which tools do each step. Every file and output below is real: it comes from the working compiler in <code>ai-standards/redaction-example</code>, where the gateway's tests run against the bundle this pipeline produces.</p>
+</header>
+
+<div class="flow">
+
+<!-- 1 -->
+<section class="stage">
+  <div class="eyebrow">Stage 1</div>
+  <h2>A user creates the policy</h2>
+  <div class="row">
+    <div class="info">
+      <p>The policy owner fills in a form. The form saves a structured record, not free text, so every rule can later be turned into code without anyone interpreting it.</p>
+      <ul>
+        <li>Each statement says <b>how</b> it is enforced: <code>gateway</code> (becomes code), <code>workflow</code> (becomes a step in a release checklist) or <code>attestation</code> (becomes a training or sign-off check).</li>
+        <li>Fields, detectors and actions are dropdowns from closed lists. That is what makes stage 4 safe and automatic.</li>
+      </ul>
+      <div class="tools">
+        <div class="t"><span class="k">Editor</span><span>React form generated from a JSON Schema (e.g. react-jsonschema-form)</span></div>
+        <div class="t"><span class="k">Storage</span><span>Postgres, one row per version, statements as JSONB</span></div>
+        <div class="t"><span class="k">Format</span><span>YAML or JSON; YAML shown because it diffs well in review</span></div>
+      </div>
+    </div>
+    <div class="art">
+      <span class="cap">policies/POL-AI-003.yaml</span>
+<pre>policy_id: POL-AI-003
+version: "2.1"
+title: Data Protection in AI Use
+owner: group:privacy-office
+approvers: [ciso, dpo]
+scope: { apps: all, environments: [prod, staging] }
+maps_to: [ISO42001:A.2.2, ISO42001:A.7, OWASP-LLM:LLM02]
+
+statements:
+  - id: "3.1"
+    text: Personal data must not be sent to externally hosted
+      models unless the application is approved for personal data.
+    enforced_by: gateway
+    applies_when:
+      - { field: destination.hosting, equals: external }
+    unless:
+      - { field: app.approved_for, contains: personal-data }
+    detect: [pii.email, pii.phone, pii.national_id]
+    action: redact
+    on_check_failure: closed
+
+  - id: "3.2"
+    text: Payment card numbers and API keys must never be sent to any model.
+    enforced_by: gateway
+    detect: [pci.card_number, secret.api_key]
+    action: block
+    on_check_failure: closed
+
+  - id: "3.3"
+    text: Customer-facing AI must tell users they are talking to AI.
+    enforced_by: workflow
+    workflow: release-approval
+
+  - id: "3.4"
+    text: Staff who build AI apps complete data protection training yearly.
+    enforced_by: attestation
+    evidence: lms:ai-data-protection</pre>
+    </div>
+  </div>
+</section>
+
+<!-- 2 -->
+<section class="stage">
+  <div class="eyebrow">Stage 2</div>
+  <h2>Relevant people review it</h2>
+  <div class="row">
+    <div class="info">
+      <p>Submitting starts a review workflow. Reviewers are picked from the policy's scope and approver roles. What they look at is generated from the same record:</p>
+      <ul>
+        <li>A <b>diff</b> against the current version, in plain language.</li>
+        <li>A <b>preview of the generated code</b> and its tests (stage 4 run in "check only" mode), so engineering can see exactly what will be enforced.</li>
+        <li>A <b>dry run</b>: last week's logged findings replayed through the new rules, showing what would have been blocked or redacted.</li>
+      </ul>
+      <div class="tools">
+        <div class="t"><span class="k">Workflow</span><span>Temporal (Go SDK): one workflow per version, reviewer actions arrive as signals</span></div>
+        <div class="t"><span class="k">Diff / preview</span><span>The compiler from stage 4, run without building a bundle</span></div>
+        <div class="t"><span class="k">Notify</span><span>Slack / Teams / email with a link to the review page</span></div>
+      </div>
+    </div>
+    <div class="art">
+      <span class="cap">review record (Postgres, written by the workflow)</span>
+<pre>{
+  "policy_id": "POL-AI-003", "version": "2.1",
+  "status": "in_review",
+  "diff_from": "2.0",
+  "changes": [
+    { "statement": "3.1", "field": "detect", "added": ["pii.national_id"] }
+  ],
+  "compile_preview": { "rules": 2, "tests": 8, "passed": 8 },
+  "dry_run": { "window_days": 7, "requests": 182340,
+               "would_redact": { "3.1": 4112 }, "would_block": { "3.2": 9 } },
+  "reviews": [
+    { "role": "security", "user": "user:li",    "decision": "approve" },
+    { "role": "legal",    "user": "user:tomas", "decision": "approve",
+      "comment": "OK once national IDs are included" }
+  ]
+}</pre>
+    </div>
+  </div>
+</section>
+
+<!-- 3 -->
+<section class="stage">
+  <div class="eyebrow">Stage 3</div>
+  <h2>The policy is approved</h2>
+  <div class="row">
+    <div class="info">
+      <p>The approvers named in the policy sign. The approval record stores a <b>SHA-256 hash of the exact policy file</b> they approved. This is the link between people and code: the compiler will only build a file whose hash matches a signed approval.</p>
+      <ul>
+        <li>The version becomes read-only. Any change is a new version and goes back to stage 1.</li>
+        <li>Authors cannot approve their own policy (separation of duties, enforced from SSO roles).</li>
+      </ul>
+      <div class="tools">
+        <div class="t"><span class="k">Signing</span><span>In-app e-signature tied to SSO identity (OIDC); optional DocuSign for legal teams that require it</span></div>
+        <div class="t"><span class="k">Record</span><span>Immutable row in Postgres, copied to the audit store</span></div>
+      </div>
+    </div>
+    <div class="art">
+      <span class="cap">governance/approvals/POL-AI-003-2.1.json</span>
+<pre>{
+  "policy_id": "POL-AI-003",
+  "version": "2.1",
+  "content_sha256": "1e9e9d2e13552ff2e93373092038b1c861703c4326780ddf65ec5b5b25702524",
+  "approvals": [
+    { "role": "ciso", "user": "user:dana", "signed_at": "2026-10-02T14:03:11Z" },
+    { "role": "dpo",  "user": "user:femi", "signed_at": "2026-10-02T15:20:45Z" }
+  ]
+}</pre>
+    </div>
+  </div>
+</section>
+
+<!-- 4 -->
+<section class="stage">
+  <div class="eyebrow">Stage 4</div>
+  <h2>The policy is implemented as code</h2>
+  <div class="info">
+    <p>Approval triggers a publish job that runs a compiler, <code>policyc</code>. It turns each <code>gateway</code> statement into a rule in <b>Rego</b>, the language of <b>Open Policy Agent (OPA)</b>, tests it, and packs it into a <b>signed bundle</b> that gateways download. The OPA engine is embedded in the Go gateway as a library, so evaluating a rule takes under a millisecond and needs no extra service. Whole run, as it prints:</p>
+  </div>
+<pre>$ go run ./cmd/policyc -policy policies/POL-AI-003.yaml
+<span class="ok">✓</span> validated     POL-AI-003 v2.1, 4 statements
+<span class="ok">✓</span> approval ok   signed by 2 approvers, content hash matches
+<span class="ok">✓</span> generated     2 gateway rules, 8 tests (2 statements enforced outside the gateway)
+<span class="ok">✓</span> tests passed  8 of 8
+<span class="ok">✓</span> bundle built  build/pol_ai_003-2.1.tar.gz (revision POL-AI-003@2.1+1e9e9d2e, signed)
+
+<span class="c"># and if anyone edits the file after approval:</span>
+<span class="stop">publish stopped: policy text changed after approval (approved 1e9e9d2e…, now f432eb71…)</span></pre>
+
+  <ol class="pipe">
+    <li>
+      <div class="info"><h3>Validate</h3><p>Checks every field against the closed lists: known detectors, known actions, known input fields, and the right operator for each field (<code>contains</code> for lists, <code>equals</code> for single values). Errors come back to the editor in plain words.</p><div class="tools"><div class="t"><span class="k">Tools</span><span>Go structs + <code>gopkg.in/yaml.v3</code>; JSON Schema for the editor side</span></div></div></div>
+      <div class="art"><span class="cap">example rejection</span>
+<pre>policy POL-AI-003 is invalid:
+  - statement 3.1: unknown detector "pii.passport"
+  - statement 3.1: app.approved_for is a list, use contains</pre></div>
+    </li>
+    <li>
+      <div class="info"><h3>Check the approval</h3><p>Loads the approval record, confirms the file's hash matches and that every role in <code>approvers</code> signed. No approval, no code.</p><div class="tools"><div class="t"><span class="k">Tools</span><span>Go <code>crypto/sha256</code></span></div></div></div>
+      <div class="art"><span class="cap">what is compared</span>
+<pre>sha256(policies/POL-AI-003.yaml)  == approval.content_sha256
+{ciso, dpo} ⊆ {roles in approval.approvals}</pre></div>
+    </li>
+    <li>
+      <div class="info"><h3>Generate Rego</h3><p>Each statement fills a template. Conditions become lines in the rule; <code>unless</code> becomes a <code>not</code>; detectors become the list of finding types. Every value from the policy goes in as a quoted JSON literal, so policy text can never inject code. Statement text becomes a comment so reviewers can match rule to wording.</p><div class="tools"><div class="t"><span class="k">Tools</span><span>Go <code>text/template</code></span></div><div class="t"><span class="k">Language</span><span>Rego v1 (OPA's policy language)</span></div></div></div>
+      <div class="art"><span class="cap">build/src/aiplane/pol_ai_003/policy.rego (generated)</span>
+<pre># GENERATED by policyc from POL-AI-003 v2.1. Do not edit.
+# Source sha256: 1e9e9d2e…25702524
+# Approved by: ciso (user:dana), dpo (user:femi)
+package aiplane.pol_ai_003
+
+policy_id := "POL-AI-003"
+policy_version := "2.1"
+
+default mode := "enforce"
+mode := m if m := data.aiplane.rollout[input.app.id][policy_id]
+
+exception_active(statement) if {
+	some e in data.aiplane.exceptions
+	e.policy_id == policy_id
+	e.statement == statement
+	e.app == input.app.id
+	time.parse_rfc3339_ns(e.expires) &gt; time.now_ns()
+}
+
+# Statement 3.1: Personal data must not be sent to externally hosted
+# models unless the application is approved for personal data.
+decisions contains {"statement": "3.1", "action": "redact",
+                    "mode": mode, "finding_ids": ids} if {
+	input.destination.hosting == "external"
+	not "personal-data" in object.get(input, ["app","approved_for"], [])
+	not exception_active("3.1")
+	ids := [f.id | some f in input.findings;
+	        f.type in ["pii.email","pii.phone","pii.national_id"]]
+	count(ids) &gt; 0
+}
+
+# Statement 3.2: Payment card numbers and API keys must never be sent to any model.
+decisions contains {"statement": "3.2", "action": "block",
+                    "mode": mode, "finding_ids": ids} if {
+	not exception_active("3.2")
+	ids := [f.id | some f in input.findings;
+	        f.type in ["pci.card_number","secret.api_key"]]
+	count(ids) &gt; 0
+}</pre></div>
+    </li>
+    <li>
+      <div class="info"><h3>Generate and run tests</h3><p>Tests are generated from the same statements: the rule must fire for each listed data type, stay quiet for other data, and stay quiet when an <code>unless</code> condition holds. If any test fails, publishing stops. Tests are kept out of the bundle.</p><div class="tools"><div class="t"><span class="k">Tools</span><span>OPA Go SDK <code>tester</code> package (same as <code>opa test</code>)</span></div></div></div>
+      <div class="art"><span class="cap">one of the 8 generated tests</span>
+<pre>test_s3_1_skipped_when_unless_1 if {
+	matched := {d | some d in p.decisions; d.statement == "3.1"}
+	  with input as {"app": {"approved_for": ["personal-data"], ...},
+	                 "destination": {"hosting": "external", ...},
+	                 "findings": [{"id": "f1", "type": "pii.email"}]}
+	count(matched) == 0
+}</pre></div>
+    </li>
+    <li>
+      <div class="info"><h3>Build a signed bundle</h3><p>The rules are packed with the data they read at runtime: exceptions, rollout mode per app (<code>monitor</code> or <code>enforce</code>), and each statement's fail mode. That data comes from the governance database, so a new exception ships without re-approving the policy. The bundle is signed; gateways reject anything that fails verification.</p><div class="tools"><div class="t"><span class="k">Tools</span><span>OPA Go SDK <code>compile</code> + <code>bundle</code> packages (same as <code>opa build</code>)</span></div><div class="t"><span class="k">Signing key</span><span>Demo uses HS256; production uses RS256/ES256 with the private key in a KMS (AWS KMS, GCP KMS, Vault)</span></div></div></div>
+      <div class="art"><span class="cap">build/pol_ai_003-2.1.tar.gz</span>
+<pre>/.manifest            {"revision": "POL-AI-003@2.1+1e9e9d2e",
+                       "roots": ["aiplane"],
+                       "metadata": {"policies": {"POL-AI-003": {
+                         "version": "2.1", "content_sha256": "1e9e9d2e…",
+                         "maps_to": ["ISO42001:A.2.2", …]}}}}
+/.signatures.json     JWT over the hash of every file
+/…/policy.rego        the generated rules
+/data.json            {"aiplane": {
+                         "exceptions": [{"id": "EXC-0042", "app": "claims-assistant",
+                                         "statement": "3.1", "expires": "2027-01-31…"}],
+                         "rollout": {"support-bot": {"POL-AI-003": "monitor"}},
+                         "policies": {"POL-AI-003": {"statements": {
+                           "3.1": {"action": "redact", "on_check_failure": "closed"},
+                           "3.2": {"action": "block",  "on_check_failure": "closed"}}}}}}</pre></div>
+    </li>
+    <li>
+      <div class="info"><h3>Distribute and load</h3><p>The bundle is uploaded to a bundle server. Each gateway polls it, verifies the signature, compiles the rules once, and swaps them in without a restart. From then on every request through the gateway is evaluated against it.</p><div class="tools"><div class="t"><span class="k">Bundle server</span><span>S3 / GCS / Azure Blob, or an OCI registry (OPA can pull bundles from both)</span></div><div class="t"><span class="k">Gateway</span><span>OPA Go SDK <code>rego</code> + <code>bundle</code> packages, embedded</span></div></div></div>
+      <div class="art"><span class="cap">policy.go in the gateway</span>
+<pre>vc := bundle.NewVerificationConfig(map[string]*bundle.KeyConfig{
+	"policy-signer": {Key: verifyKey, Algorithm: "HS256"},
+}, "policy-signer", "", nil)
+b, err := bundle.NewReader(f).WithBundleVerificationConfig(vc).Read()
+<span class="c">// a bundle signed with any other key fails here</span>
+
+q, err := rego.New(
+	rego.Query("data.aiplane.pol_ai_003"),
+	rego.ParsedBundle("policies", &amp;b),
+).PrepareForEval(ctx)</pre></div>
+    </li>
+  </ol>
+</section>
+
+</div>
+
+<section style="display:flex;flex-direction:column;gap:12px">
+  <div class="eyebrow">Statements that are not code</div>
+  <h2>Where workflow and attestation statements go</h2>
+  <p>Only <code>gateway</code> statements become Rego. The same publish job turns the others into configuration for the systems that enforce them.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Statement</th><th>Compiled into</th><th>Enforced by</th></tr></thead>
+    <tbody>
+      <tr><td><b>3.3</b> AI disclosure for customer-facing apps</td><td>A required checklist item <code>POL-AI-003/3.3</code> added to the <code>release-approval</code> workflow template</td><td>The release gate in CI/CD asks the workflow engine whether the item is ticked before deploy</td></tr>
+      <tr><td><b>3.4</b> Yearly training</td><td>A check that course <code>ai-data-protection</code> is complete for everyone in scope</td><td>Nightly job against the LMS API; gaps open tasks for managers and show on the policy dashboard</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section style="display:flex;flex-direction:column;gap:12px">
+  <div class="eyebrow">Summary</div>
+  <h2>Tools per stage</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Stage</th><th>Data</th><th>Tools</th></tr></thead>
+    <tbody>
+      <tr><td>1 Create</td><td>Policy record (YAML/JSON)</td><td>React + JSON Schema forms, Postgres</td></tr>
+      <tr><td>2 Review</td><td>Review record, diff, code preview, dry run</td><td>Temporal (Go), the compiler in check mode, Slack/Teams</td></tr>
+      <tr><td>3 Approve</td><td>Approval record with content hash</td><td>SSO (OIDC) e-sign, Postgres, audit store</td></tr>
+      <tr><td>4 Implement</td><td>Rego rules, tests, signed bundle</td><td>Go <code>text/template</code>, OPA Go SDK (<code>tester</code>, <code>compile</code>, <code>bundle</code>, <code>rego</code>), KMS for signing, S3 or OCI registry</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">Run it yourself: in <code>redaction-example</code>, <code>go run ./cmd/policyc</code> builds the bundle, and <code>go test ./...</code> compiles the policy the same way and runs the gateway against it (8 tests, including a monitor-mode rollout and a bundle signed with the wrong key being rejected).</p>
+</section>
+</div>

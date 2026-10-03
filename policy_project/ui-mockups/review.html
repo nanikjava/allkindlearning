@@ -1,0 +1,79 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="base.css"><style>
+.steps{background:var(--panel);border-bottom:1px solid var(--line);padding:12px 24px;display:flex;gap:10px;align-items:center}
+.step{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:8px;border:1px solid var(--line);background:#fff}
+.step .who{font-weight:600}
+.step .r{color:var(--muted);font-size:12px}
+.arrow{color:#b4bccb}
+.body{display:grid;grid-template-columns:1fr 380px;gap:18px;padding:18px 24px;flex:1;min-height:0}
+.col{display:flex;flex-direction:column;gap:16px;min-width:0}
+.card{padding:16px 18px}
+.diff{margin-top:10px;display:flex;flex-direction:column;gap:8px}
+.d{padding:9px 12px;border-radius:7px;font-size:13px;line-height:1.45}
+.d.add{background:var(--ok-soft);border-left:3px solid var(--ok)}
+.d.same{background:#f6f7fa;color:var(--muted)}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:-4px -18px 12px;padding:0 18px}
+.tabs span{padding:9px 12px;font-weight:600;color:var(--muted);border-bottom:2px solid transparent}
+.tabs span.on{color:var(--accent);border-bottom-color:var(--accent)}
+pre{margin:0;background:var(--code);border:1px solid var(--line);border-radius:8px;padding:12px 14px;font-size:11.5px;line-height:1.6;color:#2a3550;white-space:pre}
+.hl{background:#dff3e6;display:inline-block;width:100%}
+.c{color:#8a93a6}
+.k{color:#7a3fb8}
+.s{color:#1f7a4a}
+.tests{display:flex;gap:10px;margin-top:10px;align-items:center}
+.thread{display:flex;flex-direction:column;gap:12px;margin-top:10px}
+.msg{display:flex;gap:10px}
+.av{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:11px;color:#fff;flex:none}
+.msg .n{font-weight:650} .msg .t{color:var(--muted);font-size:11.5px;margin-left:6px}
+.msg p{margin:3px 0 0;line-height:1.45}
+.box{border:1px solid #cfd5df;border-radius:8px;padding:10px;color:var(--muted);min-height:58px;margin-top:4px}
+.big{font-size:22px;font-weight:700}
+.kv{display:grid;grid-template-columns:1fr auto;gap:6px 10px;margin-top:10px;font-size:13px}
+.kv span:nth-child(even){font-weight:600;text-align:right}
+</style></head><body>
+<nav><div class="logo">Aiplane<span>.</span></div>
+<a>Overview</a><a>AI inventory</a><a>Policies</a><a class="on">Reviews <span class="pill" style="margin-left:6px;padding:1px 7px">2</span></a><a>Exceptions</a><a>Gateway</a>
+<div class="sec">Evidence</div><a>Decision log</a><a>Audit exports</a></nav>
+<main>
+<header><div><div class="crumbs">Reviews / POL-AI-003 v2.1</div><h1>Review: Data Protection in AI Use</h1></div>
+<span class="pill">In review</span><span class="pill grey">Submitted by Amira K. · 1 Oct</span><div class="spacer"></div><span class="muted" style="color:var(--muted)">Due 6 Oct</span></header>
+<div class="steps">
+  <div class="step"><span class="pill ok">✓</span><span class="who">Security</span><span class="r">Li W. approved</span></div><span class="arrow">→</span>
+  <div class="step" style="border-color:#c9d7f6;background:var(--accent-soft)"><span class="pill warn">●</span><span class="who">Legal</span><span class="r">You · waiting</span></div><span class="arrow">→</span>
+  <div class="step"><span class="pill grey">○</span><span class="who">Sign-off</span><span class="r">CISO, DPO</span></div><span class="arrow">→</span>
+  <div class="step"><span class="pill grey">○</span><span class="who">Publish</span><span class="r">monitor mode first</span></div>
+</div>
+<div class="body">
+  <div class="col">
+    <div class="card"><div class="label">What changed since v2.0</div>
+      <div class="diff">
+        <div class="d add"><b>3.1</b> now also detects <b>National ID numbers</b> (was: email and phone only)</div>
+        <div class="d add"><b>3.2</b> now also blocks <b>API keys</b> (was: card numbers only)</div>
+        <div class="d same">3.3 and 3.4 unchanged</div>
+      </div></div>
+    <div class="card"><div class="tabs"><span>Plain language</span><span class="on">Generated rule</span><span>Tests (8)</span><span>Full document</span></div>
+<pre><span class="c"># Statement 3.1: Personal data must not be sent to externally hosted models
+# unless the application is approved for personal data.</span>
+<span class="k">decisions contains</span> {<span class="s">"statement"</span>: <span class="s">"3.1"</span>, <span class="s">"action"</span>: <span class="s">"redact"</span>, <span class="s">"mode"</span>: mode, <span class="s">"finding_ids"</span>: ids} <span class="k">if</span> {
+    input.destination.hosting == <span class="s">"external"</span>
+    <span class="k">not</span> <span class="s">"personal-data"</span> <span class="k">in</span> object.get(input, [<span class="s">"app"</span>,<span class="s">"approved_for"</span>], [])
+    <span class="k">not</span> exception_active(<span class="s">"3.1"</span>)
+<span class="hl">    ids := [f.id | <span class="k">some</span> f <span class="k">in</span> input.findings; f.type <span class="k">in</span> [<span class="s">"pii.email"</span>,<span class="s">"pii.phone"</span>,<span class="s">"pii.national_id"</span>]]</span>
+    count(ids) > 0
+}</pre>
+      <div class="tests"><span class="pill ok">✓ 8 of 8 generated checks pass</span><span style="color:var(--muted)">Generated from the policy. Read-only.</span></div></div>
+  </div>
+  <div class="col">
+    <div class="card"><div class="label">Dry run · last 7 days</div>
+      <div class="kv"><span>Requests checked</span><span>182,340</span><span>Would be redacted (3.1)</span><span>4,112</span><span>Would be blocked (3.2)</span><span>9</span><span>Apps affected</span><span>3</span></div></div>
+    <div class="card"><div class="label">Discussion</div>
+      <div class="thread">
+        <div class="msg"><div class="av" style="background:#2f6f4f">LW</div><div><span class="n">Li W.</span><span class="t">Security · 1 Oct</span><p>Approved. The 9 blocked requests are test keys from staging, fine to block.</p></div></div>
+        <div class="msg"><div class="av" style="background:#8a4fbf">AK</div><div><span class="n">Amira K.</span><span class="t">Author · 2 Oct</span><p>Added national IDs after last week's support ticket incident.</p></div></div>
+      </div>
+      <div class="box">Add a comment…</div></div>
+    <div class="card" style="display:flex;flex-direction:column;gap:10px"><div class="label">Your decision</div>
+      <div style="display:flex;gap:8px"><button class="btn primary" style="flex:1">Approve</button><button class="btn danger" style="flex:1">Request changes</button></div>
+      <span style="color:var(--muted);font-size:12px">Approving records your name, role and the exact version you reviewed.</span></div>
+  </div>
+</div>
+</main></body></html>

@@ -1,0 +1,27 @@
+*{box-sizing:border-box}
+:root{--bg:#f4f5f8;--panel:#fff;--fg:#1a2030;--muted:#667085;--line:#e3e6ec;--accent:#2457c5;--accent-soft:#e9effc;--ok:#1f7a4a;--ok-soft:#e5f4ec;--warn:#9a5b0b;--warn-soft:#fdf1df;--red:#b4232c;--red-soft:#fde8e9;--code:#f6f7fa}
+html,body{margin:0;height:100%}
+body{font-family:"Inter","Segoe UI",system-ui,-apple-system,sans-serif;font-size:13px;color:var(--fg);background:var(--bg);display:grid;grid-template-columns:200px 1fr;height:100vh;width:100vw}
+nav{background:#141a2a;color:#c9d1e3;padding:18px 14px;display:flex;flex-direction:column;gap:4px}
+nav .logo{color:#fff;font-weight:700;font-size:15px;margin:0 6px 18px;letter-spacing:.2px}
+nav .logo span{color:#7ea6ff}
+nav a{padding:8px 10px;border-radius:6px;color:inherit;text-decoration:none}
+nav a.on{background:#24304d;color:#fff}
+nav .sec{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:#7a85a0;margin:14px 10px 4px}
+main{display:flex;flex-direction:column;min-width:0}
+header{background:var(--panel);border-bottom:1px solid var(--line);padding:14px 24px;display:flex;align-items:center;gap:14px}
+header .crumbs{color:var(--muted);font-size:12px}
+header h1{font-size:18px;margin:2px 0 0;font-weight:650}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
+.pill.ok{background:var(--ok-soft);color:var(--ok)} .pill.warn{background:var(--warn-soft);color:var(--warn)} .pill.grey{background:#eef0f4;color:var(--muted)} .pill.red{background:var(--red-soft);color:var(--red)}
+.btn{border:1px solid var(--line);background:#fff;border-radius:7px;padding:8px 14px;font-weight:600;font-size:13px;color:var(--fg)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.danger{color:var(--red)}
+.spacer{flex:1}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px}
+.label{font-size:11px;font-weight:650;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.field{border:1px solid #cfd5df;border-radius:7px;padding:8px 10px;background:#fff;display:inline-flex;align-items:center;gap:8px;font-weight:550}
+.field::after{content:"▾";color:var(--muted);font-size:11px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:#eef2fb;border:1px solid #d6e0f7;color:#21408c;border-radius:6px;padding:5px 8px;font-weight:550}
+.chip i{font-style:normal;color:#7b8db8}
+code,pre{font-family:"JetBrains Mono","SFMono-Regular",Menlo,Consolas,monospace}

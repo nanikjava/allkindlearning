@@ -1,0 +1,132 @@
+<title>ISO 42001 Product Map</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: single reading column, wide tables that scroll in their own box, clause IDs set in mono like a standards document */
+:root{
+  --bg:#f6f7f9; --surface:#ffffff; --fg:#1b2230; --muted:#5a6475; --line:#dde1e8;
+  --accent:#1f5fa8; --accent-soft:#e6eef8; --tag:#eef0f4;
+  --display:"IBM Plex Serif",Georgia,serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12161d; --surface:#1a1f28; --fg:#e4e8ef; --muted:#9aa4b5; --line:#2c3340;
+  --accent:#7fb0ec; --accent-soft:#1d2a3c; --tag:#232a36; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12161d; --surface:#1a1f28; --fg:#e4e8ef; --muted:#9aa4b5; --line:#2c3340;
+  --accent:#7fb0ec; --accent-soft:#1d2a3c; --tag:#232a36; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.55;padding-inline:16px;padding-block:32px 64px}
+.wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:40px}
+h1,h2{font-family:var(--display);text-wrap:balance;margin:0}
+h1{font-size:2rem;font-weight:600}
+h2{font-size:1.35rem;font-weight:600}
+p{margin:0;max-width:68ch}
+.lede{color:var(--muted);font-size:1.02rem}
+section{display:flex;flex-direction:column;gap:14px}
+.eyebrow{font-family:var(--mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:820px;font-size:.9rem}
+th,td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:1px solid var(--line)}
+th{font-weight:600;font-size:.78rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);background:var(--tag)}
+tr:last-child td{border-bottom:0}
+td.id{font-family:var(--mono);font-size:.82rem;color:var(--accent);white-space:nowrap}
+td b{font-weight:600}
+ul{margin:0;padding-left:1.1em}
+code{font-family:var(--mono);font-size:.85em;background:var(--tag);padding:1px 5px;border-radius:3px}
+.layers{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px}
+.layer{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:14px 16px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.layer h3{margin:0;font-size:1rem;font-weight:600}
+.layer p{color:var(--muted);font-size:.9rem}
+ol.phases{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:10px;max-width:75ch}
+ol.phases li::marker{font-family:var(--mono);color:var(--accent)}
+.note{background:var(--accent-soft);border-radius:6px;padding:12px 16px;font-size:.9rem;max-width:none}
+</style>
+
+<div class="wrap">
+<header style="display:flex;flex-direction:column;gap:10px">
+  <div class="eyebrow">ISO/IEC 42001:2023 · AI management system</div>
+  <h1>ISO 42001 Product Map</h1>
+  <p class="lede">How the standard's clauses and Annex A controls map to features and technical components of a product that governs and secures AI applications for private organisations. Each row gives the requirement, the product feature that serves it, how to build it, and the evidence an auditor will ask to see.</p>
+</header>
+
+<section>
+  <div class="eyebrow">The idea</div>
+  <h2>Three layers to build</h2>
+  <p>ISO 42001 asks an organisation to run a management system: policies, risk and impact assessments, controls, monitoring, and continual improvement. A product helps by making each of those a workflow, enforcing the technical controls at runtime, and collecting the evidence automatically.</p>
+  <div class="layers">
+    <div class="layer"><h3>Governance layer</h3><p>AI inventory, policies, roles, risk and impact assessments, approvals, Statement of Applicability. Mostly workflow software.</p></div>
+    <div class="layer"><h3>Enforcement layer</h3><p>A gateway or SDK in front of models and agents that applies policy: data filtering, prompt-injection defence, tool permissions, rate and cost limits.</p></div>
+    <div class="layer"><h3>Evidence layer</h3><p>Tamper-evident logs, monitoring metrics, incident records and audit exports that prove the controls ran.</p></div>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Clauses 4 to 10</div>
+  <h2>Management system requirements</h2>
+  <p>These are the "run the system" clauses. Every certified customer must show all of them.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Clause</th><th>What it requires</th><th>Product feature</th><th>Technical implementation</th><th>Evidence produced</th></tr></thead>
+    <tbody>
+      <tr><td class="id">4</td><td>Context, stakeholders, scope of the AIMS, and the organisation's role (provider, developer, user of AI)</td><td><b>Organisation profile and scope builder</b></td><td>Structured scope record per business unit; role tags on every AI system (provider / deployer / user)</td><td>Scope statement, stakeholder register</td></tr>
+      <tr><td class="id">5</td><td>Leadership commitment, AI policy, assigned roles and responsibilities</td><td><b>Policy library and RACI</b></td><td>Versioned policy documents with approval workflow and e-sign; role model linked to SSO groups (Okta, Entra ID)</td><td>Signed policy versions, role assignments</td></tr>
+      <tr><td class="id">6.1</td><td>AI risk assessment, risk treatment, Statement of Applicability, AI system impact assessment</td><td><b>Risk register, impact assessment and SoA generator</b></td><td>Risk scoring engine (likelihood × impact) per AI system; templates based on ISO 23894 and 42005; SoA auto-built from which Annex A controls are enabled</td><td>Risk register, treatment plans, SoA, impact assessments</td></tr>
+      <tr><td class="id">6.2</td><td>Measurable AI objectives and plans to reach them</td><td><b>Objectives and KPI tracker</b></td><td>Objectives linked to metrics pulled from runtime telemetry (e.g. blocked PII rate, eval pass rate)</td><td>KPI dashboards over time</td></tr>
+      <tr><td class="id">7</td><td>Resources, competence, awareness, communication, documented information</td><td><b>Training tracker and document control</b></td><td>Training assignments and completion via LMS integration; document store with versioning and retention</td><td>Training records, controlled documents</td></tr>
+      <tr><td class="id">8</td><td>Operate the planned processes; perform risk and impact assessments at planned intervals and on change</td><td><b>Lifecycle gates and change triggers</b></td><td>CI/CD hooks that block a model or prompt release until assessment and approvals exist; re-assessment triggered when model, data or use case changes</td><td>Gate decisions, change records</td></tr>
+      <tr><td class="id">9</td><td>Monitoring and measurement, internal audit, management review</td><td><b>Monitoring dashboards, audit module, review packs</b></td><td>Metrics from gateway and eval pipelines; internal audit checklists mapped to clauses; one-click management review report</td><td>Audit reports, review minutes</td></tr>
+      <tr><td class="id">10</td><td>Nonconformity, corrective action, continual improvement</td><td><b>Findings and CAPA workflow</b></td><td>Ticket workflow (or Jira / ServiceNow sync) with root cause, action owner, due date and verification</td><td>Corrective action log</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <div class="eyebrow">Annex A</div>
+  <h2>Controls mapped to features</h2>
+  <p>Annex A has 38 controls in nine groups. Customers choose which apply in their Statement of Applicability, so each control should be a toggle in the product that switches on its feature and evidence collection.</p>
+  <div class="scroll"><table>
+    <thead><tr><th>Group</th><th>Covers</th><th>Product feature</th><th>Technical implementation</th><th>Evidence produced</th></tr></thead>
+    <tbody>
+      <tr><td class="id">A.2</td><td>AI policy, alignment with other policies, review of the policy</td><td><b>Policy-as-code</b></td><td>Written policies compiled into machine rules (e.g. OPA/Rego or Cedar) that the gateway enforces; scheduled review reminders</td><td>Policy versions linked to the rules deployed</td></tr>
+      <tr><td class="id">A.3</td><td>Internal organisation: roles, responsibilities, reporting of concerns</td><td><b>Ownership and concern reporting</b></td><td>Every AI system has a named owner; internal form or Slack/Teams channel for raising AI concerns, routed to triage</td><td>Owner list, concern log</td></tr>
+      <tr><td class="id">A.4</td><td>Resources: data, tooling, compute, people for each AI system</td><td><b>AI inventory and AI bill of materials</b></td><td>Auto-discovery of models, API keys, vector stores and agents from cloud accounts and code; AI-BOM in CycloneDX ML-BOM format</td><td>Complete, current AI inventory</td></tr>
+      <tr><td class="id">A.5</td><td>Impact assessment on individuals, groups and society; documenting results</td><td><b>Impact assessment workflow</b></td><td>Questionnaire based on ISO 42005, risk tiering (can also tag EU AI Act risk class), sign-off by reviewers</td><td>Signed impact assessments per system</td></tr>
+      <tr><td class="id">A.6</td><td>AI lifecycle: requirements, design, verification and validation, deployment, operation and monitoring, technical docs, event logs</td><td><b>Release gates, evals, runtime monitoring, logging</b></td><td>Eval pipelines (accuracy, bias, jailbreak and red-team tests) run in CI; deployment blocked on failed gates; drift and quality monitoring in production; structured, tamper-evident event logs (OpenTelemetry to an append-only store)</td><td>Eval reports, deployment approvals, model cards, log retention</td></tr>
+      <tr><td class="id">A.7</td><td>Data: quality, provenance, acquisition, preparation</td><td><b>Data lineage and data controls</b></td><td>Dataset registry with source, licence and consent; lineage tracking; PII detection and redaction on training data and prompts</td><td>Dataset records, lineage graph, DLP logs</td></tr>
+      <tr><td class="id">A.8</td><td>Information for users and interested parties; reporting incidents</td><td><b>Transparency and incident notices</b></td><td>Auto-generated system cards and user-facing AI disclosures; incident notification templates and contact lists</td><td>Published disclosures, incident communications</td></tr>
+      <tr><td class="id">A.9</td><td>Responsible use: processes, objectives, intended use</td><td><b>Runtime guardrails and usage policy enforcement</b></td><td>AI gateway or proxy in front of LLM calls: prompt-injection and jailbreak detection, output filtering, allowed-use checks, human approval for high-risk agent actions, least-privilege tool permissions for agents</td><td>Blocked and allowed request logs, approval records</td></tr>
+      <tr><td class="id">A.10</td><td>Third parties: allocating responsibilities, suppliers, customers</td><td><b>Vendor and model-provider risk</b></td><td>Supplier questionnaires; tracking of provider certifications (42001, SOC 2); model and API usage mapped to each vendor; contract clauses stored with each vendor</td><td>Vendor assessments, responsibility matrix</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <div class="eyebrow">Architecture</div>
+  <h2>Core technical components</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Component</th><th>What it does</th><th>Serves</th></tr></thead>
+    <tbody>
+      <tr><td><b>AI inventory and discovery</b></td><td>Finds and catalogues every model, agent, dataset and AI vendor in use</td><td class="id">A.4, A.10, 4</td></tr>
+      <tr><td><b>Governance workflow engine</b></td><td>Policies, assessments, approvals, SoA, CAPA, audits</td><td class="id">5, 6, 9, 10, A.2, A.3, A.5</td></tr>
+      <tr><td><b>Policy engine</b></td><td>Turns written policy into rules the runtime can check (OPA/Rego or Cedar)</td><td class="id">A.2, A.9</td></tr>
+      <tr><td><b>AI gateway or SDK</b></td><td>Sits between apps and models; applies guardrails, DLP, tool permissions, rate limits</td><td class="id">A.6, A.7, A.9</td></tr>
+      <tr><td><b>Eval and red-team pipeline</b></td><td>Runs tests in CI and on a schedule; results feed release gates</td><td class="id">A.6, 8</td></tr>
+      <tr><td><b>Telemetry and evidence store</b></td><td>Append-only, signed logs with retention; metrics for KPIs</td><td class="id">A.6, 6.2, 9</td></tr>
+      <tr><td><b>Integrations</b></td><td>SSO, CI/CD, ticketing, cloud accounts, LLM providers, GRC tools</td><td class="id">all</td></tr>
+      <tr><td><b>Audit export</b></td><td>Evidence pack per clause and control, ready for the certification body</td><td class="id">9.2, all</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note">Map the same controls to NIST AI RMF (Govern, Map, Measure, Manage), the OWASP LLM and Agentic Top 10, and the EU AI Act in one internal control library. Customers can then reuse one piece of evidence across several frameworks, which is what buyers of these products value most.</p>
+</section>
+
+<section>
+  <div class="eyebrow">Build order</div>
+  <h2>Suggested phases</h2>
+  <ol class="phases">
+    <li><b>Inventory and gateway.</b> AI discovery, AI-BOM, and a gateway with logging, PII redaction and prompt-injection detection. This gives immediate security value and the raw evidence everything else needs.</li>
+    <li><b>Governance workflows.</b> Policy library, risk register, impact assessments, SoA generator and owner assignment. This covers most of clauses 5, 6 and A.2 to A.5.</li>
+    <li><b>Lifecycle gates.</b> CI/CD integration, eval pipeline, release approvals, model cards. This covers clause 8 and A.6.</li>
+    <li><b>Assurance.</b> KPI dashboards, internal audit module, CAPA, management review packs and audit export. This is what lets a customer pass certification.</li>
+    <li><b>Cross-framework mapping.</b> NIST AI RMF, OWASP and EU AI Act views over the same controls and evidence.</li>
+  </ol>
+</section>
+
+<p class="note">Annex A control groups and clause summaries here are paraphrased. Buy the standard from ISO or your national body and build your control library from its exact wording, since auditors check against that text.</p>
+</div>

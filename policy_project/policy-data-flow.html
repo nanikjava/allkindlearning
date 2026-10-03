@@ -1,0 +1,259 @@
+<title>Policy Data Flow</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one column of stages; each stage pairs a short explanation with the exact data shape; a vertical spine links the stages because order matters */
+:root{
+  --bg:#f6f7f9; --surface:#ffffff; --fg:#1b2230; --muted:#5a6475; --line:#dde1e8;
+  --accent:#1f5fa8; --accent-soft:#e6eef8; --tag:#eef0f4; --code-bg:#f1f3f7; --new:#2f7d4f;
+  --display:"IBM Plex Serif",Georgia,serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12161d; --surface:#1a1f28; --fg:#e4e8ef; --muted:#9aa4b5; --line:#2c3340;
+  --accent:#7fb0ec; --accent-soft:#1d2a3c; --tag:#232a36; --code-bg:#161b23; --new:#6fc594; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12161d; --surface:#1a1f28; --fg:#e4e8ef; --muted:#9aa4b5; --line:#2c3340;
+  --accent:#7fb0ec; --accent-soft:#1d2a3c; --tag:#232a36; --code-bg:#161b23; --new:#6fc594; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.55;padding-inline:16px;padding-block:32px 64px}
+.wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:36px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
+h1{font-size:2rem;font-weight:600} h2{font-size:1.25rem;font-weight:600}
+p{margin:0;max-width:70ch}
+.lede{color:var(--muted);font-size:1.02rem}
+.eyebrow{font-family:var(--mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.flow{display:flex;flex-direction:column;gap:0;border-left:2px solid var(--line);margin-left:6px}
+.stage{position:relative;padding:0 0 36px 24px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:20px}
+.stage::before{content:"";position:absolute;left:-7px;top:6px;width:12px;height:12px;border-radius:50%;background:var(--bg);border:2px solid var(--accent)}
+.stage:last-child{padding-bottom:0}
+@media (max-width:760px){.stage{grid-template-columns:minmax(0,1fr)}}
+.info{display:flex;flex-direction:column;gap:8px;min-width:0}
+.meta{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-family:var(--mono);font-size:.72rem;padding:2px 8px;border-radius:10px;background:var(--tag);color:var(--muted)}
+.info ul{margin:0;padding-left:1.1em;font-size:.9rem;display:flex;flex-direction:column;gap:4px}
+pre{margin:0;background:var(--code-bg);border:1px solid var(--line);border-radius:6px;padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:.78rem;line-height:1.55;min-width:0}
+.c{color:var(--muted)}
+.n{color:var(--new);font-weight:500}
+.note{background:var(--accent-soft);border-radius:6px;padding:12px 16px;font-size:.9rem;max-width:none}
+</style>
+
+<div class="wrap">
+<header style="display:flex;flex-direction:column;gap:10px">
+  <div class="eyebrow">POL-AI-003 · Data Protection in AI Use</div>
+  <h1>Policy Data Flow</h1>
+  <p class="lede">The exact data at each step, from the owner's first save to the audit log. One policy statement (3.1, redact personal data sent to external models) is followed all the way through. Fields shown in green are the ones added at that step.</p>
+</header>
+
+<div class="flow">
+
+<section class="stage">
+  <div class="info">
+    <div class="eyebrow">Stage 1</div>
+    <h2>Draft saved from the editor</h2>
+    <div class="meta"><span class="chip">Postgres · policy_versions</span><span class="chip">mutable</span></div>
+    <ul>
+      <li>The form posts this JSON. It is validated against the policy JSON Schema before saving.</li>
+      <li>Status is <code>draft</code>, so the owner can keep editing it.</li>
+    </ul>
+  </div>
+<pre>{
+  "policy_id": "POL-AI-003",
+  "version": "2.1",
+  "status": "draft",
+  "title": "Data Protection in AI Use",
+  "owner": "group:privacy-office",
+  "scope": { "apps": "all", "environments": ["prod", "staging"] },
+  "review_every": "P12M",
+  "maps_to": ["ISO42001:A.2.2", "ISO42001:A.7", "OWASP-LLM:LLM02"],
+  "statements": [
+    {
+      "id": "3.1",
+      "text": "Personal data must not be sent to externally hosted models unless the application is approved for personal data.",
+      "enforced_by": "gateway",
+      "rule": {
+        "when":   { "destination.hosting": "external" },
+        "detect": ["pii.email", "pii.phone", "pii.national_id"],
+        "unless": { "app.approved_for": "personal-data" },
+        "action": "redact",
+        "on_check_failure": "closed"
+      }
+    }
+  ],
+  "author": "user:amira",
+  "updated_at": "2026-10-01T09:12:00Z"
+}</pre>
+</section>
+
+<section class="stage">
+  <div class="info">
+    <div class="eyebrow">Stage 2</div>
+    <h2>In review, with a dry run</h2>
+    <div class="meta"><span class="chip">Temporal workflow state</span><span class="chip">locked for editing</span></div>
+    <ul>
+      <li>Submitting starts a review workflow. The compiler builds the rules and replays the last 7 days of logged findings through them.</li>
+      <li>Reviewers see comments and the impact before they approve.</li>
+    </ul>
+  </div>
+<pre>{
+  "policy_id": "POL-AI-003",
+  "version": "2.1",
+  "status": <span class="n">"in_review"</span>,
+  <span class="n">"workflow_id": "policy-review/POL-AI-003/2.1"</span>,
+  <span class="n">"reviewers": [
+    { "role": "security", "user": "user:li",    "state": "approved" },
+    { "role": "legal",    "user": "user:tomas", "state": "changes_requested",
+      "comment": "Add passport numbers to 3.1" }
+  ]</span>,
+  <span class="n">"compile_check": { "opa_check": "pass", "generated_tests": 6, "passed": 6 }</span>,
+  <span class="n">"dry_run": {
+    "window": "2026-09-24/2026-10-01",
+    "requests_evaluated": 182340,
+    "by_statement": {
+      "3.1": { "would_redact": 4112, "apps": ["support-bot", "sales-copilot"] }
+    }
+  }</span>
+}</pre>
+</section>
+
+<section class="stage">
+  <div class="info">
+    <div class="eyebrow">Stage 3</div>
+    <h2>Approved version</h2>
+    <div class="meta"><span class="chip">Postgres · immutable</span><span class="chip">e-signed</span></div>
+    <ul>
+      <li>Once every approver signs, the record is frozen. Any change after this is a new version.</li>
+      <li>A content hash ties the approved wording to the rules built from it.</li>
+    </ul>
+  </div>
+<pre>{
+  "policy_id": "POL-AI-003",
+  "version": "2.1",
+  "status": <span class="n">"approved"</span>,
+  "statements": [ <span class="c">/* frozen, now includes pii.passport */</span> ],
+  <span class="n">"approvals": [
+    { "role": "ciso", "user": "user:dana",  "signed_at": "2026-10-02T14:03:11Z" },
+    { "role": "dpo",  "user": "user:femi",  "signed_at": "2026-10-02T15:20:45Z" }
+  ]</span>,
+  <span class="n">"effective_from": "2026-10-05"</span>,
+  <span class="n">"next_review": "2027-10-05"</span>,
+  <span class="n">"content_sha256": "9c1e…a47f"</span>,
+  <span class="n">"supersedes": "2.0"</span>
+}</pre>
+</section>
+
+<section class="stage">
+  <div class="info">
+    <div class="eyebrow">Stage 4</div>
+    <h2>Compiled into a signed bundle</h2>
+    <div class="meta"><span class="chip">object storage</span><span class="chip">OPA bundle .tar.gz</span></div>
+    <ul>
+      <li>The compiler turns each gateway statement into Rego and packs it with the data the rules need: exceptions, app approvals and rollout mode.</li>
+      <li>The bundle is signed, so a gateway refuses any bundle that was altered.</li>
+    </ul>
+  </div>
+<pre><span class="c"># bundle-2026-10-05.tar.gz</span>
+.manifest
+  { "revision": "POL-AI-003@2.1+data-118",
+    "roots": ["aiplane"],
+    "metadata": { "policies": { "POL-AI-003": { "version": "2.1",
+                                               "content_sha256": "9c1e…a47f" } } } }
+.signatures.json             <span class="c"># JWT over every file's hash</span>
+aiplane/pol_ai_003/policy.rego <span class="c"># generated, see redaction example</span>
+data.json
+  { "rollout": { "support-bot":   { "POL-AI-003": "monitor" },
+                 "sales-copilot": { "POL-AI-003": "enforce" } },
+    "apps": { "hr-assistant": { "approved_for": ["personal-data"] } },
+    "exceptions": [
+      { "id": "EXC-0042", "app": "claims-assistant", "policy_id": "POL-AI-003", "statement": "3.1",
+        "expires": "2027-01-31T00:00:00Z", "approved_by": "user:femi" } ] }</pre>
+</section>
+
+<section class="stage">
+  <div class="info">
+    <div class="eyebrow">Stage 5</div>
+    <h2>Evaluated on a live request</h2>
+    <div class="meta"><span class="chip">gateway memory only</span><span class="chip">&lt; 1 ms</span></div>
+    <ul>
+      <li>The gateway sends OPA only types and positions, never the text itself.</li>
+      <li>OPA returns which statement applies, what to do, and whether it is in monitor or enforce mode.</li>
+    </ul>
+  </div>
+<pre><span class="c">// input sent to OPA</span>
+{
+  "request_id": "req_7Hk2",
+  "app": { "id": "sales-copilot", "approved_for": [] },
+  "destination": { "provider": "openai", "hosting": "external" },
+  "findings": [
+    { "id": "f1", "type": "pii.email", "message": 1, "start": 9,  "end": 29 },
+    { "id": "f2", "type": "pii.phone", "message": 1, "start": 38, "end": 54 }
+  ]
+}
+
+<span class="c">// result from OPA</span>
+{
+  "policy_id": "POL-AI-003",
+  "policy_version": "2.1",
+  "decisions": [
+    { "statement": "3.1", "action": "redact", "mode": "enforce",
+      "finding_ids": ["f1", "f2"] }
+  ]
+}</pre>
+</section>
+
+<section class="stage">
+  <div class="info">
+    <div class="eyebrow">Stage 6</div>
+    <h2>Logged as audit evidence</h2>
+    <div class="meta"><span class="chip">ClickHouse + S3 Object Lock</span><span class="chip">append-only</span></div>
+    <ul>
+      <li>One record per decision, with counts instead of values.</li>
+      <li>Each record carries the hash of the previous one, so a deleted or edited record breaks the chain.</li>
+    </ul>
+  </div>
+<pre>{
+  "ts": "2026-10-06T10:41:07.233Z",
+  "request_id": "req_7Hk2",
+  "app": "sales-copilot",
+  "user": "sso:jk@acme.com",
+  "destination": "openai",
+  "policy_id": "POL-AI-003",
+  "policy_version": "2.1",
+  "bundle_revision": "POL-AI-003@2.1+data-118",
+  "statement": "3.1",
+  "action": "redact",
+  "mode": "enforce",
+  "finding_counts": { "pii.email": 1, "pii.phone": 1 },
+  "check_status": "ok",           <span class="c">// or "skipped: timeout" when a check fails open</span>
+  "latency_ms": { "detect": 31, "policy": 0.4 },
+  "prev_hash": "b07d…e211",
+  "hash": "4f9a…0c3d"
+}</pre>
+</section>
+
+<section class="stage">
+  <div class="info">
+    <div class="eyebrow">Stage 7</div>
+    <h2>Rolled up for monitoring and review</h2>
+    <div class="meta"><span class="chip">dashboards · audit export</span></div>
+    <ul>
+      <li>Logs roll up per statement. These numbers feed the owner's dashboard, the management review pack and the yearly review.</li>
+      <li>A spike or an incident can open a new version, which starts the flow again at stage 1.</li>
+    </ul>
+  </div>
+<pre>{
+  "policy_id": "POL-AI-003",
+  "version": "2.1",
+  "period": "2026-10",
+  "by_statement": {
+    "3.1": { "evaluated": 812004, "redacted": 17388, "monitor_only": 2210,
+             "skipped_checks": 12, "exceptions_used": 943 },
+    "3.2": { "evaluated": 812004, "blocked": 41 }
+  },
+  "acknowledged": { "in_scope": 1240, "done": 1187 },
+  "open_findings": ["AUD-2026-07"],
+  "next_review": "2027-10-05"
+}</pre>
+</section>
+
+</div>
+
+<p class="note">These are illustrative shapes for the sample policy. Names, IDs, counts and hashes are made up to show the structure; the one rule that matters is that personal data values never leave the gateway, only types, counts and policy references do.</p>
+</div>

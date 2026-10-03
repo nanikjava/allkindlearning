@@ -1,0 +1,78 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="base.css"><style>
+.body{display:grid;grid-template-columns:230px 1fr 320px;gap:18px;padding:18px 24px;flex:1;min-height:0}
+.list{padding:10px;display:flex;flex-direction:column;gap:4px;align-self:start}
+.item{padding:10px;border-radius:8px;display:flex;flex-direction:column;gap:5px;border:1px solid transparent}
+.item.on{background:var(--accent-soft);border-color:#c9d7f6}
+.item .t{font-weight:600}
+.item .s{color:var(--muted);font-size:12px;line-height:1.35}
+.add{color:var(--accent);font-weight:600;padding:10px}
+.ed{padding:18px 20px;display:flex;flex-direction:column;gap:14px}
+textarea{width:100%;border:1px solid #cfd5df;border-radius:8px;padding:10px 12px;font:inherit;font-size:14px;line-height:1.45;resize:none;height:62px}
+.seg{display:inline-flex;border:1px solid #cfd5df;border-radius:8px;overflow:hidden}
+.seg span{padding:8px 14px;font-weight:600;color:var(--muted);border-right:1px solid #cfd5df}
+.seg span:last-child{border-right:0}
+.seg span.on{background:var(--accent);color:#fff}
+.rule{border:1px solid var(--line);border-radius:10px;background:#fafbfd;padding:6px 16px}
+.rrow{display:grid;grid-template-columns:140px 1fr;align-items:center;gap:12px;padding:9px 0;border-bottom:1px dashed var(--line)}
+.rrow:last-child{border-bottom:0}
+.kw{font-weight:700;color:#3b4a6b}
+.kw small{display:block;font-weight:500;color:var(--muted);font-size:11.5px;margin-top:2px}
+.flex{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.muted{color:var(--muted)}
+.link{color:var(--accent);font-weight:600}
+.side{display:flex;flex-direction:column;gap:14px}
+.side .card{padding:16px}
+.plain{font-size:13.5px;line-height:1.55;margin-top:8px}
+.plain b{font-weight:650}
+.bar{display:grid;grid-template-columns:110px 1fr 52px;align-items:center;gap:8px;margin-top:9px;font-size:12.5px}
+.bar .b{height:8px;border-radius:4px;background:#e9edf4;overflow:hidden}
+.bar .b span{display:block;height:100%;background:var(--accent)}
+.big{font-size:26px;font-weight:700;margin-top:6px}
+footer{background:var(--panel);border-top:1px solid var(--line);padding:12px 24px;display:flex;gap:10px;align-items:center}
+.saved{color:var(--muted);font-size:12px}
+</style></head><body>
+<nav><div class="logo">Aiplane<span>.</span></div>
+<a>Overview</a><a>AI inventory</a><a class="on">Policies</a><a>Reviews <span class="pill" style="margin-left:6px;padding:1px 7px">2</span></a><a>Exceptions</a><a>Gateway</a>
+<div class="sec">Evidence</div><a>Decision log</a><a>Audit exports</a></nav>
+<main>
+<header><div><div class="crumbs">Policies / POL-AI-003</div><h1>Data Protection in AI Use</h1></div>
+<span class="pill warn">Draft · v2.1</span><span class="pill grey">Owner: Privacy Office</span><span class="pill grey">Approvers: CISO, DPO</span><div class="spacer"></div><button class="btn">Policy settings</button></header>
+<div class="body">
+  <div class="card list">
+    <div class="label" style="padding:6px 10px">Statements</div>
+    <div class="item on"><div class="flex"><span class="t">3.1</span><span class="pill">Gateway</span></div><div class="s">Personal data must not be sent to externally hosted models…</div></div>
+    <div class="item"><div class="flex"><span class="t">3.2</span><span class="pill">Gateway</span></div><div class="s">Payment card numbers and API keys must never be sent…</div></div>
+    <div class="item"><div class="flex"><span class="t">3.3</span><span class="pill grey">Workflow</span></div><div class="s">Customer-facing AI must tell users they are talking to AI.</div></div>
+    <div class="item"><div class="flex"><span class="t">3.4</span><span class="pill grey">Attestation</span></div><div class="s">Staff who build AI apps complete training yearly.</div></div>
+    <div class="add">+ Add statement</div>
+  </div>
+
+  <div class="card ed">
+    <div style="display:flex;flex-direction:column;gap:6px"><div class="label">Statement 3.1 · what people read</div>
+      <textarea>Personal data must not be sent to externally hosted models unless the application is approved for personal data.</textarea></div>
+    <div class="flex" style="gap:14px"><div class="label">How is it enforced?</div><div class="seg"><span class="on">Gateway rule</span><span>Workflow step</span><span>Attestation</span></div></div>
+    <div style="display:flex;flex-direction:column;gap:8px"><div class="label">Rule · what the gateway does</div>
+    <div class="rule">
+      <div class="rrow"><div class="kw">Applies when<small>All conditions must match</small></div><div class="flex"><span class="field">Model hosting</span><span class="muted">is</span><span class="field">External (third-party API)</span><span class="link">+ condition</span></div></div>
+      <div class="rrow"><div class="kw">Unless</div><div class="flex"><span class="field">App is approved for</span><span class="field">Personal data</span><span class="link">+ exception rule</span></div></div>
+      <div class="rrow"><div class="kw">Look for<small>Detectors</small></div><div class="flex"><span class="chip">Email address <i>×</i></span><span class="chip">Phone number <i>×</i></span><span class="chip">National ID <i>×</i></span><span class="link">+ Add data type</span></div></div>
+      <div class="rrow"><div class="kw">Then</div><div class="flex"><span class="field">Redact the values</span><span class="muted">before the request leaves</span></div></div>
+      <div class="rrow"><div class="kw">If the check can't run</div><div class="flex"><span class="field">Block the request (fail closed)</span><span class="muted">Recommended for personal data</span></div></div>
+    </div></div>
+    <div class="flex" style="gap:22px"><div class="flex"><span class="label">Scope</span><span class="field">All apps</span></div><div class="flex"><span class="label">Environments</span><span class="chip">Production <i>×</i></span><span class="chip">Staging <i>×</i></span></div></div>
+  </div>
+
+  <div class="side">
+    <div class="card"><div class="label">What this rule will do</div>
+      <div class="plain">When an app sends a prompt to an <b>external model</b>, emails, phone numbers and national IDs are <b>replaced with placeholders</b> like [EMAIL_1]. Apps approved for personal data are skipped. If detection fails, the request is <b>blocked</b>.</div></div>
+    <div class="card"><div class="label">Impact on last 7 days of traffic</div>
+      <div class="big">4,112 <span style="font-size:13px;font-weight:500" class="muted">requests would be redacted</span></div>
+      <div class="bar"><span>support-bot</span><div class="b"><span style="width:78%"></span></div><span class="muted">3,190</span></div>
+      <div class="bar"><span>sales-copilot</span><div class="b"><span style="width:22%"></span></div><span class="muted">922</span></div>
+      <div class="bar"><span>hr-assistant</span><div class="b"><span style="width:0"></span></div><span class="muted">skipped</span></div></div>
+    <div class="card"><div class="label">Maps to</div><div class="flex" style="margin-top:10px"><span class="pill grey">ISO 42001 A.2.2</span><span class="pill grey">ISO 42001 A.7</span><span class="pill grey">OWASP LLM02</span></div></div>
+    <div class="card" style="display:flex;gap:10px;align-items:center"><span class="pill ok">✓ Valid</span><span class="muted">Rule compiles, 8 checks pass</span></div>
+  </div>
+</div>
+<footer><span class="saved">Draft saved 2 minutes ago</span><div class="spacer"></div><button class="btn">Preview as document</button><button class="btn">Save draft</button><button class="btn primary">Submit for review</button></footer>
+</main></body></html>
