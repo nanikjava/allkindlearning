@@ -1,0 +1,14 @@
+# Exported from the governance database at publish time. It changes more
+# often than the policy (new exceptions, rollouts), so it ships as bundle
+# data, not as part of the approved policy text.
+exceptions:
+  - id: EXC-0042
+    policy_id: POL-AI-003
+    statement: "3.1"
+    app: claims-assistant
+    expires: "2027-01-31T00:00:00Z"
+    approved_by: user:femi
+rollout:            # app -> policy -> mode; anything not listed is "enforce"
+  support-bot:
+    POL-AI-003: monitor
+apps: {}

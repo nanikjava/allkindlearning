@@ -1,0 +1,45 @@
+# Authoring format. In the product this is what the policy editor saves;
+# owners fill in forms and never edit this by hand.
+policy_id: POL-AI-003
+version: "2.1"
+title: Data Protection in AI Use
+owner: group:privacy-office
+approvers: [ciso, dpo]            # roles that must sign before compile
+review_every: P12M
+scope:
+  apps: all
+  environments: [prod, staging]
+maps_to: [ISO42001:A.2.2, ISO42001:A.7, OWASP-LLM:LLM02]
+
+statements:
+  - id: "3.1"
+    text: >-
+      Personal data must not be sent to externally hosted models unless the
+      application is approved for personal data.
+    enforced_by: gateway
+    applies_when:
+      - field: destination.hosting
+        equals: external
+    unless:
+      - field: app.approved_for
+        contains: personal-data
+    detect: [pii.email, pii.phone, pii.national_id]
+    action: redact
+    on_check_failure: closed
+
+  - id: "3.2"
+    text: Payment card numbers and API keys must never be sent to any model.
+    enforced_by: gateway
+    detect: [pci.card_number, secret.api_key]
+    action: block
+    on_check_failure: closed
+
+  - id: "3.3"
+    text: Customer-facing AI must tell users they are talking to AI.
+    enforced_by: workflow
+    workflow: release-approval
+
+  - id: "3.4"
+    text: Staff who build AI applications complete data protection training every year.
+    enforced_by: attestation
+    evidence: lms:ai-data-protection

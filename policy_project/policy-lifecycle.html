@@ -1,0 +1,221 @@
+<title>AI Policy Lifecycle</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: single reading column; lifecycle as a wrapping row of stages; policy shown in three side-by-side forms that stack on phones */
+:root{
+  --bg:#f6f7f9; --surface:#ffffff; --fg:#1b2230; --muted:#5a6475; --line:#dde1e8;
+  --accent:#1f5fa8; --accent-soft:#e6eef8; --tag:#eef0f4; --code-bg:#f1f3f7;
+  --ok:#2f7d4f; --warn:#a4661a;
+  --display:"IBM Plex Serif",Georgia,serif; --body:"IBM Plex Sans",system-ui,sans-serif; --mono:"IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#12161d; --surface:#1a1f28; --fg:#e4e8ef; --muted:#9aa4b5; --line:#2c3340;
+  --accent:#7fb0ec; --accent-soft:#1d2a3c; --tag:#232a36; --code-bg:#161b23; --ok:#6fc594; --warn:#e0a95c; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#12161d; --surface:#1a1f28; --fg:#e4e8ef; --muted:#9aa4b5; --line:#2c3340;
+  --accent:#7fb0ec; --accent-soft:#1d2a3c; --tag:#232a36; --code-bg:#161b23; --ok:#6fc594; --warn:#e0a95c; color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:15px;line-height:1.55;padding-inline:16px;padding-block:32px 64px}
+.wrap{max-width:1100px;margin:0 auto;display:flex;flex-direction:column;gap:44px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
+h1{font-size:2rem;font-weight:600} h2{font-size:1.35rem;font-weight:600} h3{font-size:1.05rem;font-weight:600}
+p{margin:0;max-width:70ch}
+.lede{color:var(--muted);font-size:1.02rem}
+section{display:flex;flex-direction:column;gap:14px}
+.eyebrow{font-family:var(--mono);font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent)}
+.stages{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;counter-reset:s}
+.stages li{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:12px 14px;display:flex;flex-direction:column;gap:6px;counter-increment:s;min-width:0}
+.stages li::before{content:counter(s,decimal-leading-zero);font-family:var(--mono);font-size:.75rem;color:var(--accent)}
+.stages b{font-weight:600}
+.stages .who{font-size:.8rem;color:var(--muted)}
+.stages p{font-size:.88rem}
+.loop{font-size:.9rem;color:var(--muted)}
+.scroll{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;min-width:720px;font-size:.9rem}
+th,td{text-align:left;vertical-align:top;padding:10px 12px;border-bottom:1px solid var(--line)}
+th{font-weight:600;font-size:.78rem;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);background:var(--tag)}
+tr:last-child td{border-bottom:0}
+td b{font-weight:600}
+.forms{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:14px}
+.form{display:flex;flex-direction:column;gap:8px;min-width:0}
+.form .who{font-size:.85rem;color:var(--muted)}
+.doc{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:18px 20px;display:flex;flex-direction:column;gap:10px;font-size:.9rem}
+.doc .meta{font-family:var(--mono);font-size:.75rem;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 14px}
+.doc h4{margin:6px 0 0;font-size:.85rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.doc ol{margin:0;padding-left:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+.doc ol li{display:grid;grid-template-columns:2.6em 1fr;gap:6px}
+.doc .sid{font-family:var(--mono);color:var(--accent);font-size:.82rem;padding-top:1px}
+.pill{display:inline-block;font-family:var(--mono);font-size:.7rem;padding:1px 7px;border-radius:10px;background:var(--tag);color:var(--muted);margin-left:4px;white-space:nowrap}
+.pill.g{color:var(--ok)} .pill.w{color:var(--warn)}
+pre{margin:0;background:var(--code-bg);border:1px solid var(--line);border-radius:6px;padding:14px 16px;overflow-x:auto;font-family:var(--mono);font-size:.8rem;line-height:1.55}
+.c{color:var(--muted)}
+.note{background:var(--accent-soft);border-radius:6px;padding:12px 16px;font-size:.9rem;max-width:none}
+ul.plain{margin:0;padding-left:1.1em;display:flex;flex-direction:column;gap:6px;max-width:75ch}
+</style>
+
+<div class="wrap">
+<header style="display:flex;flex-direction:column;gap:10px">
+  <div class="eyebrow">Governance workflow · ISO 42001 clause 5, 7, A.2</div>
+  <h1>AI Policy Lifecycle</h1>
+  <p class="lede">How an AI policy moves from draft to enforced rule and back to review, the situations that start the workflow, and what a policy looks like as a readable document, a structured record, and a rule the gateway runs.</p>
+</header>
+
+<section>
+  <div class="eyebrow">Workflow</div>
+  <h2>The lifecycle</h2>
+  <ol class="stages">
+    <li><b>Draft</b><span class="who">Policy owner (e.g. privacy office)</span><p>Starts from a template. Writes each statement and marks how it is enforced: by the gateway, by a workflow, or by attestation.</p></li>
+    <li><b>Review</b><span class="who">Security, legal, privacy, engineering</span><p>Comments and redlines. Engineering runs a dry run of the rules against last week's traffic to see what would be blocked.</p></li>
+    <li><b>Approve</b><span class="who">Named approvers (CISO, DPO)</span><p>E-sign. The version is frozen and gets an effective date.</p></li>
+    <li><b>Publish</b><span class="who">System</span><p>Statements compile to gateway rules. Rollout can start in monitor-only mode, then switch to enforce.</p></li>
+    <li><b>Acknowledge</b><span class="who">Employees in scope</span><p>Read and accept. Completion is tracked per person as training evidence.</p></li>
+    <li><b>Monitor</b><span class="who">System and owner</span><p>Dashboards show violations, blocks, exceptions and skipped checks per statement.</p></li>
+    <li><b>Review and revise</b><span class="who">Policy owner</span><p>Scheduled (e.g. yearly) or triggered by an incident, audit finding or law change. Goes back to Draft as a new version, or is retired.</p></li>
+  </ol>
+  <p class="loop">Every step is logged with who, when and which version, so an auditor can see the full history of any policy.</p>
+</section>
+
+<section>
+  <div class="eyebrow">Use cases</div>
+  <h2>What starts the workflow</h2>
+  <div class="scroll"><table>
+    <thead><tr><th>Situation</th><th>What happens</th></tr></thead>
+    <tbody>
+      <tr><td><b>First-time setup</b></td><td>A new customer picks from a starter pack (acceptable use, data protection, model risk, agent actions, vendor use), adjusts the wording and approves. They are enforcing on day one.</td></tr>
+      <tr><td><b>Yearly review</b></td><td>The engine opens a review task a month before the date. If nothing changes, the owner re-approves and the evidence shows it was reviewed.</td></tr>
+      <tr><td><b>Regulation changes</b></td><td>An EU AI Act or sector rule update is mapped to the affected policies, which reopen with the change highlighted.</td></tr>
+      <tr><td><b>Incident</b></td><td>A leak or harmful output is traced to a gap. Corrective action creates a new policy version with a tighter rule.</td></tr>
+      <tr><td><b>Audit finding</b></td><td>An auditor notes a statement without evidence. The owner adds an enforcement method or a workflow step.</td></tr>
+      <tr><td><b>Exception request</b></td><td>A team needs to break one statement. They get a time-limited exception with compensating controls, attached to that policy version.</td></tr>
+      <tr><td><b>New team or app joins</b></td><td>The app inherits the policies that match its scope (department, risk tier, environment). No manual setup.</td></tr>
+      <tr><td><b>Retirement</b></td><td>A policy is merged into another or no longer applies. Its rules are removed from the gateway and the record is kept for the audit trail.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <div class="eyebrow">Anatomy</div>
+  <h2>One policy, three forms</h2>
+  <p>People write and approve the readable version. The product stores it as a structured record, which is the source of truth. The gateway rule is generated from that record, so nobody hand-writes code to change a policy.</p>
+
+  <div class="forms">
+    <div class="form">
+      <h3>1. What people read and approve</h3>
+      <span class="who">Shown in the product and exported as a PDF for audits</span>
+      <div class="doc">
+        <div class="meta"><span>POL-AI-003</span><span>v2.1</span><span>Effective 1 Oct 2026</span><span>Owner: Privacy Office</span></div>
+        <h3 style="font-size:1.1rem">Data Protection in AI Use</h3>
+        <h4>Purpose</h4>
+        <p>Keep personal and sensitive data safe when employees and applications use AI models.</p>
+        <h4>Scope</h4>
+        <p>All AI applications and AI tools used by employees, in production and staging.</p>
+        <h4>Statements</h4>
+        <ol>
+          <li><span class="sid">3.1</span><span>Personal data must not be sent to externally hosted models unless the application is approved for personal data. <span class="pill g">gateway</span></span></li>
+          <li><span class="sid">3.2</span><span>Payment card numbers, passwords and API keys must never be sent to any model. <span class="pill g">gateway</span></span></li>
+          <li><span class="sid">3.3</span><span>Customer-facing AI must tell users they are talking to AI. <span class="pill w">workflow</span></span></li>
+          <li><span class="sid">3.4</span><span>Staff who build AI applications complete data protection training every year. <span class="pill">attestation</span></span></li>
+        </ol>
+        <h4>Exceptions</h4>
+        <p>Requested through the exception workflow. Maximum six months. Approved by the DPO.</p>
+        <h4>Review</h4>
+        <p>Every 12 months, and after any related incident.</p>
+      </div>
+    </div>
+
+    <div class="form">
+      <h3>2. What the product stores</h3>
+      <span class="who">Versioned record behind the editor (YAML shown)</span>
+<pre>id: POL-AI-003
+title: Data Protection in AI Use
+version: 2.1
+status: published
+owner: privacy-office
+approved_by: [ciso, dpo]
+effective: 2026-10-01
+review_every: 12m
+scope:
+  apps: all
+  environments: [prod, staging]
+maps_to:                     <span class="c"># reuse evidence across frameworks</span>
+  - ISO42001:A.2.2
+  - ISO42001:A.7
+  - OWASP-LLM:LLM02
+  - NIST-AI-RMF:MAP-4.1
+
+statements:
+  - id: "3.1"
+    enforced_by: gateway
+    when: destination.hosting == "external"
+    detect: [pii.email, pii.phone, pii.national_id]
+    unless: app.approved_for contains "personal-data"
+    action: redact
+    on_check_failure: closed
+  - id: "3.2"
+    enforced_by: gateway
+    detect: [pci.card_number, secret.password,
+             secret.api_key]
+    action: block
+    on_check_failure: closed
+  - id: "3.3"
+    enforced_by: workflow
+    workflow: release-approval   <span class="c"># checkbox at release</span>
+  - id: "3.4"
+    enforced_by: attestation
+    evidence: lms.course("ai-data-protection")
+
+exceptions:
+  - app: claims-assistant
+    statement: "3.1"
+    expires: 2027-01-31
+    approved_by: dpo
+    compensating: [self-hosted-model]</pre>
+    </div>
+  </div>
+
+  <div class="form">
+    <h3>3. What the gateway runs</h3>
+    <span class="who">Generated from the record, here as Open Policy Agent (Rego). The gateway's detectors send in their findings; the rule returns a decision.</span>
+<pre>package aiplane.pol_ai_003
+
+import rego.v1
+
+blocked_types := {"pci.card_number", "secret.password", "secret.api_key"}
+pii_types     := {"pii.email", "pii.phone", "pii.national_id"}
+
+<span class="c"># 3.2  always block card numbers and secrets</span>
+decisions contains {"action": "block", "statement": "3.2"} if {
+    some f in input.findings
+    f.type in blocked_types
+}
+
+<span class="c"># 3.1  redact personal data going to external models, unless approved or excepted</span>
+decisions contains {"action": "redact", "statement": "3.1", "spans": spans} if {
+    input.destination.hosting == "external"
+    not "personal-data" in input.app.approved_for
+    not exception_active("3.1")
+    spans := [f.span | some f in input.findings; f.type in pii_types]
+    count(spans) &gt; 0
+}
+
+exception_active(sid) if {
+    some e in data.exceptions
+    e.app == input.app.id
+    e.statement == sid
+    time.parse_rfc3339_ns(e.expires) &gt; time.now_ns()
+}</pre>
+  </div>
+</section>
+
+<section>
+  <div class="eyebrow">Design notes</div>
+  <h2>Choices that make this work</h2>
+  <ul class="plain">
+    <li><b>Every statement has an ID and an enforcement type.</b> Gateway, workflow or attestation. Not everything can be checked by code, and the audit report shows which statements have automatic evidence and which rely on people.</li>
+    <li><b>Owners use a form editor, not YAML.</b> Detectors, actions and conditions are dropdowns. The YAML and Rego exist for engineers, versioning and export.</li>
+    <li><b>Monitor mode before enforce.</b> New or changed rules run in log-only mode first, so owners see the impact before anything is blocked.</li>
+    <li><b>Evidence links to the version.</b> Each gateway decision records the policy ID, version and statement, so a block in March can be traced to the exact wording approved at the time.</li>
+    <li><b>Store policies like code.</b> Keep the records in a Git-style history with diffs between versions. Customers can also sync them to their own repository.</li>
+  </ul>
+  <p class="note">This is an illustrative example: the policy ID, statements, detector names and control mappings are samples to show the shape, not wording taken from ISO 42001.</p>
+</section>
+</div>

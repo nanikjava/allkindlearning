@@ -1,0 +1,4 @@
+# policyc output (regenerate with: go run ./cmd/policyc)
+redaction-example/build/
+__pycache__/
+*.pyc

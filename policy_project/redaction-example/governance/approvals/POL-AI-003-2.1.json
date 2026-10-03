@@ -1,0 +1,9 @@
+{
+  "policy_id": "POL-AI-003",
+  "version": "2.1",
+  "content_sha256": "1e9e9d2e13552ff2e93373092038b1c861703c4326780ddf65ec5b5b25702524",
+  "approvals": [
+    { "role": "ciso", "user": "user:dana", "signed_at": "2026-10-02T14:03:11Z" },
+    { "role": "dpo",  "user": "user:femi", "signed_at": "2026-10-02T15:20:45Z" }
+  ]
+}
