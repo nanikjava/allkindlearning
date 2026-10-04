@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+
+	"example.com/aigateway/registry"
 )
 
 // Policy is the authoring format saved by the editor (policies/*.yaml).
@@ -56,8 +58,7 @@ type Approval struct {
 // them closed lists is also what makes code generation safe, because no
 // free text from a policy ever lands in Rego outside a JSON string.
 var (
-	knownDetectors = set("pii.email", "pii.phone", "pii.national_id", "pci.card_number", "secret.api_key")
-	knownActions   = set("block", "redact")
+	knownActions = set("block", "redact")
 	// input field -> whether it is a list (use contains) or a scalar (use equals)
 	knownFields = map[string]bool{
 		"destination.hosting":  false,
@@ -104,8 +105,8 @@ func Validate(p *Policy) error {
 			add("%s: detect needs at least one detector", where)
 		}
 		for _, d := range s.Detect {
-			if !knownDetectors[d] {
-				add("%s: unknown detector %q", where, d)
+			if !registry.Known(d) {
+				add("%s: unknown detector %q (known: %s)", where, d, registry.List())
 			}
 		}
 		for _, c := range append(append([]Condition{}, s.AppliesWhen...), s.Unless...) {

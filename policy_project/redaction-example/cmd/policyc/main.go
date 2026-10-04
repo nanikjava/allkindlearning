@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"example.com/aigateway/registry"
 	"github.com/open-policy-agent/opa/v1/bundle"
 	"github.com/open-policy-agent/opa/v1/compile"
 	"github.com/open-policy-agent/opa/v1/tester"
@@ -64,10 +65,19 @@ func run(ctx context.Context, policyPath, approvalDir, dataPath, outDir string) 
 	// 3. Generate Rego, tests and bundle data.
 	var gateway []Statement
 	meta := map[string]any{}
+	var needsService []string
 	for _, s := range p.Statements {
 		if s.EnforcedBy == "gateway" {
 			gateway = append(gateway, s)
-			meta[s.ID] = map[string]any{"on_check_failure": s.OnCheckFailure, "action": s.Action}
+			needs := registry.NeedsPIIService(s.Detect)
+			if needs {
+				needsService = append(needsService, s.ID)
+			}
+			meta[s.ID] = map[string]any{
+				"on_check_failure":  s.OnCheckFailure,
+				"action":            s.Action,
+				"needs_pii_service": needs, // gateway refuses to load the bundle without it
+			}
 		}
 	}
 	src := filepath.Join(outDir, "src")
@@ -88,6 +98,10 @@ func run(ctx context.Context, policyPath, approvalDir, dataPath, outDir string) 
 	}
 	step("generated", "%d gateway rules, %d tests (%d statements enforced outside the gateway)",
 		len(gateway), len(view["Tests"].([]testCase)), len(p.Statements)-len(gateway))
+	if len(needsService) > 0 {
+		fmt.Printf("   note: statement(s) %s use types found only by the PII service; "+
+			"gateways need PII_SERVICE_URL to load this bundle\n", strings.Join(needsService, ", "))
+	}
 
 	// 4. Compile and run the generated tests. A rule that does not do what
 	//    the statement says never reaches a gateway.

@@ -23,8 +23,12 @@ signed bundle it produces.
 
 1. **Identify the app.** The team's gateway key maps to an app record
    (id, approvals) and a destination (provider, external or self-hosted).
-2. **Detect.** `detect.go` scans each message and returns findings:
-   type + message index + byte offsets. Values are never sent to OPA.
+2. **Detect.** `detect.go` scans each message with regex and returns findings:
+   type + message index + byte offsets. If `PII_SERVICE_URL` is set, the
+   gateway also calls the NER sidecar in `pii-service/` (spaCy/Presidio or
+   GLiNER2) and merges its findings; regex wins where both overlap. If the
+   sidecar is unreachable the request is blocked (503). Values are never
+   sent to OPA.
 3. **Decide.** `policy.go` loads the signed bundle (rejecting a bad
    signature) and sends `{app, destination, findings}` to the generated rules. OPA answers with
    decisions such as `{"statement":"3.1","action":"redact","finding_ids":[...]}`.
@@ -44,9 +48,24 @@ Example from the test run:
     log: {"policy":"POL-AI-003","policy_version":"2.1","statement":"3.1",
           "action":"redact","finding_types":{"pii.email":2,"pii.phone":1},"redacted":3}
 
+## Finding types a policy can use
+
+`registry/registry.go` is the single list of finding types. The compiler
+rejects any other type, so a policy cannot ask for data nothing detects.
+
+| Type | Found by |
+| --- | --- |
+| `pii.email`, `pii.phone`, `pii.national_id`, `pci.card_number`, `secret.api_key` | regex in the gateway (`detect.go`) |
+| `pii.name`, `pii.address`, `pii.bank_account`, `secret.password` | PII service only (`PII_SERVICE_URL`) |
+
+When a statement uses a PII-service type, `policyc` marks it
+`needs_pii_service` in the bundle data, and the gateway refuses to start
+with that bundle unless `PII_SERVICE_URL` is set. Otherwise those statements
+would never fire. To add a type: add it to the registry, map a label to it in
+the sidecar's `LABELS`, and add a placeholder name in `redact.go`.
+
 ## What a production version adds
 
-- NER detection (e.g. Microsoft Presidio) behind `Detect` for names and addresses.
 - Streaming (SSE) responses, with response-side scanning and restore on the fly.
 - Other API shapes: Anthropic messages, content-part arrays, tool-call arguments.
 - Policy bundles pulled from the governance service instead of local files.

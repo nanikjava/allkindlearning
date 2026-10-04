@@ -7,9 +7,13 @@ import (
 )
 
 var placeholder = map[string]string{
-	"pii.email":       "EMAIL",
-	"pii.phone":       "PHONE",
-	"pii.national_id": "NATIONAL_ID",
+	"pii.email":        "EMAIL",
+	"pii.phone":        "PHONE",
+	"pii.national_id":  "NATIONAL_ID",
+	"pii.name":         "NAME",
+	"pii.address":      "ADDRESS",
+	"pii.bank_account": "BANK_ACCOUNT",
+	"secret.password":  "PASSWORD",
 }
 
 // Redact replaces the given findings with typed placeholders such as

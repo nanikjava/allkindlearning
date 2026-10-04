@@ -40,6 +40,11 @@ type Destination struct {
 type Policy struct {
 	query    rego.PreparedEvalQuery
 	Revision string // bundle revision, logged with every decision
+	// NeedsPIIService is true when a statement in the bundle detects a type
+	// only the PII service produces (see registry). The gateway must not
+	// run such a bundle without the service, or those statements would
+	// silently never fire.
+	NeedsPIIService bool
 }
 
 // Result is the full policy output, including which policy version decided,
@@ -74,7 +79,7 @@ func LoadBundle(ctx context.Context, path, verifyKey string) (*Policy, error) {
 	if err != nil {
 		return nil, fmt.Errorf("prepare policy: %w", err)
 	}
-	return &Policy{query: q, Revision: b.Manifest.Revision}, nil
+	return &Policy{query: q, Revision: b.Manifest.Revision, NeedsPIIService: needsPIIService(b.Data)}, nil
 }
 
 func (p *Policy) Eval(ctx context.Context, in PolicyInput) (*Result, error) {
@@ -92,4 +97,22 @@ func (p *Policy) Eval(ctx context.Context, in PolicyInput) (*Result, error) {
 		return nil, err
 	}
 	return &out, nil
+}
+
+// needsPIIService reads data.aiplane.policies[*].statements[*].needs_pii_service,
+// which policyc writes into the bundle.
+func needsPIIService(data map[string]any) bool {
+	aiplane, _ := data["aiplane"].(map[string]any)
+	policies, _ := aiplane["policies"].(map[string]any)
+	for _, p := range policies {
+		pm, _ := p.(map[string]any)
+		stmts, _ := pm["statements"].(map[string]any)
+		for _, s := range stmts {
+			sm, _ := s.(map[string]any)
+			if v, _ := sm["needs_pii_service"].(bool); v {
+				return true
+			}
+		}
+	}
+	return false
 }
