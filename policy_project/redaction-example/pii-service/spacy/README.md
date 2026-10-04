@@ -12,9 +12,9 @@ either one.
 
 ```bash
 uv sync                                     # install dependencies
-uv run python pii_service.py demo           # run the example prompt on the command line
-uv run python pii_service.py server         # start the HTTP service on 127.0.0.1:3002
-uv run uvicorn pii_service:app --port 3002  # same thing, using the uvicorn CLI
+uv run python main.py demo           # run the example prompt on the command line
+uv run python main.py server         # start the HTTP service on 127.0.0.1:3002
+uv run uvicorn main:create_app --factory --port 3002  # same thing, using the uvicorn CLI
 ```
 
 Environment variables:
@@ -23,42 +23,54 @@ Environment variables:
 | ------------- | ---------------- | ----------------------------------------------------------------- |
 | `SPACY_MODEL` | `en_core_web_lg` | spaCy model Presidio uses for names and locations                 |
 | `LOG_LEVEL`   | `INFO`           | `DEBUG` logs every finding (type, score, offsets; never the text) |
+| `HOST`        | `127.0.0.1`      | Address `server` listens on; `0.0.0.0` to accept remote callers   |
+| `PORT`        | `3002`           | Port `server` listens on                                          |
 
 ## Files
 
-| File              | What it is                                                     |
-| ----------------- | -------------------------------------------------------------- |
-| `pii_service.py`  | The service: detection, redaction, HTTP endpoints and the demo |
-| `load_testing.py` | Sends many requests at once to `/detect` and reports latency   |
-| `pyproject.toml`  | Dependencies, including the spaCy model wheel                  |
+| File                       | What it is                                                         |
+| -------------------------- | ------------------------------------------------------------------ |
+| `main.py`                  | Entry point: reads settings, sets up logging, FastAPI app and CLI  |
+| `config.py`                | `Settings` and `SpacyConfig`: env vars, labels, thresholds         |
+| `detector.py`              | `PresidioDetector`, plus `to_finding` and `drop_overlaps`          |
+| `recognizers.py`           | Recognizers added on top of Presidio's defaults                    |
+| `au_licence_recognizer.py` | Custom Australian driver licence recognizer                        |
+| `redaction.py`             | `redact()`: placeholders and vault; no Presidio dependency         |
+| `load_testing.py`          | Sends many requests at once to `/detect` and reports latency       |
+| `pyproject.toml`           | Dependencies, including the spaCy model wheel                      |
 
-## How `pii_service.py` is laid out
+## How the code is laid out
 
-1. **Settings**
-   - `LABELS` maps Presidio entity types such as `PERSON` and `IBAN_CODE` to the
+1. **`config.py`**: `Settings` (host, port, log level, and a `SpacyConfig`)
+   and `Settings.from_env()`, which reads the environment variables.
+   `SpacyConfig` holds the model name and the detection settings below; their
+   defaults are the `_LABELS`, `_THRESHOLDS` and `_IGNORED_SPACY_LABELS` lists.
+   - `labels` maps Presidio entity types such as `PERSON` and `IBAN_CODE` to the
      finding types the gateway policy understands, such as `pii.name` and
      `pii.bank_account`. Presidio only looks for the entities listed here.
-   - `THRESHOLDS` and `DEFAULT_THRESHOLD` set the lowest confidence score kept
+   - `thresholds` and `default_threshold` set the lowest confidence score kept
      for each entity type.
-2. **`PresidioDetector` class**: everything that uses Presidio.
-   - `__init__` loads the spaCy engine and builds the `AnalyzerEngine`. It also
-     adds three recognizers: a custom API-key recognizer (OpenAI-style `sk-…`
-     and AWS `AKIA…` keys, the same patterns as `detect.go`) and the Australian
-     TFN and Medicare recognizers. Presidio includes those two but doesn't load
-     them by default.
+   - `ignored_labels` lists spaCy labels that don't map to a finding type.
+2. **`recognizers.py`**: `extra_recognizers()` returns the recognizers added to
+   Presidio: a custom API-key recognizer (OpenAI-style `sk-…` and AWS `AKIA…`
+   keys, the same patterns as `detect.go`), the Australian TFN and Medicare
+   recognizers (Presidio includes them but doesn't load them by default), and
+   our Australian driver licence recognizer.
+3. **`detector.py`**: everything that uses Presidio.
+   - `PresidioDetector.__init__` loads the spaCy engine, builds the
+     `AnalyzerEngine` and registers `extra_recognizers()`.
    - `detect(text)` runs the analyzer and drops low-score results. It returns
-     each finding with both **character** and **UTF-8 byte** offsets, because
-     the Go gateway works with byte offsets.
-3. **Helpers that don't use Presidio**, so another engine could reuse them:
+     each finding with both **character** and **UTF-8 byte** offsets (built by
+     `to_finding`), because the Go gateway works with byte offsets.
    - `drop_overlaps(findings)`: when two findings overlap, keeps the one with
      the higher score (the longer one if the scores are equal).
-   - `redact(text, findings)`: replaces each value with a numbered placeholder
-     such as `[NAME_1]`. The same value always gets the same placeholder. It
-     also returns a vault (`{placeholder: original}`) so the original values
-     can be put back later.
-4. **HTTP app (FastAPI)**: creates one `PresidioDetector` when the file loads
-   and serves the endpoints below.
-5. **Command-line entry points**: `demo` and `server`.
+4. **`redaction.py`**: `redact(text, findings)` replaces each value with a
+   numbered placeholder such as `[NAME_1]`. The same value always gets the same
+   placeholder. It also returns a vault (`{placeholder: original}`) so the
+   original values can be put back later.
+5. **`main.py`**: `main()` reads `Settings.from_env()`, sets up logging and
+   creates one `PresidioDetector` from `settings.spacy`; `create_app(detector)`
+   builds the FastAPI app around it. Importing the module loads nothing. It serves the endpoints below, and has the `demo` and `server` commands.
 
 ## API
 
@@ -103,7 +115,7 @@ redaction, so placeholders are stable and the vault can be kept.
 
 To support a new entity, add it to `LABELS` (and to `THRESHOLDS` if it needs
 its own score cut-off). If Presidio doesn't recognize it out of the box, also
-register a recognizer in `PresidioDetector.__init__`.
+add a recognizer to `extra_recognizers()` in `recognizers.py`.
 
 ## References
 

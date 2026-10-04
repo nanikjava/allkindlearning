@@ -13,5 +13,5 @@ dependencies = [
 ]
 
 [tool.uv]
-# pii_service.py is a single script, not an installable package.
+# Plain modules run from this folder, not an installable package.
 package = false
