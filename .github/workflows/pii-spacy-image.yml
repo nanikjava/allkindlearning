@@ -6,7 +6,6 @@ on:
     paths:
       - "policy_project/redaction-example/pii-service/spacy/**"
       - ".github/workflows/pii-spacy-image.yml"
-    tags: ["pii-spacy-v*"]
   workflow_dispatch:   # lets you start it by hand from the Actions tab
 
 env:
@@ -30,20 +29,11 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.IMAGE }}
-          tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=sha
-            type=match,pattern=pii-spacy-v(.*),group=1
-
       - uses: docker/build-push-action@v6
         with:
           context: ${{ env.CONTEXT }}
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
+          # Always overwrite the same tag so :latest tracks main.
+          tags: ${{ env.IMAGE }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
