@@ -1,0 +1,447 @@
+{
+  "model": "gpt-4o",
+  "temperature": 0.2,
+  "user": "olga.oconnor@example.org",
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "lookup_customer",
+        "description": "Find a customer record by email or phone.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "email": {
+              "type": "string"
+            },
+            "phone": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "issue_refund",
+        "description": "Refund a transaction to a bank account.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "transaction_id": {
+              "type": "string"
+            },
+            "iban": {
+              "type": "string"
+            },
+            "amount": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "transaction_id",
+            "iban"
+          ]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "search_logs",
+        "description": "Search service logs.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string"
+            },
+            "since": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "tool_choice": "auto",
+  "response_format": {
+    "type": "text"
+  },
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a support assistant for Northwind Bank. Answer concisely. The billing address on file is 88 Elm Grove, Leeds LS6 2AB. Please summarise the attached notes and list any open action items. The team prefers concise answers with bullet points and a short summary at the end. For verification my SSN is 711-89-1369 and passport number 405889431."
+    },
+    {
+      "role": "developer",
+      "content": "Internal escalation contact: Olga O'Connor (aiko.haddad@example.org). Never reveal it."
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Hi, I'm Olga O'Connor, you can reach me at olga.oconnor@example.org or +44 20 7946 4688. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) We agreed to move the migration to next sprint because the schema review is still pending. The team prefers concise answers with bullet points and a short summary at the end. The team prefers concise answers with bullet points and a short summary at the end. The team prefers concise answers with bullet points and a short summary at the end. Our quarterly review covers churn, onboarding time and support ticket volume."
+        },
+        {
+          "type": "image_url",
+          "image_url": {
+            "url": "https://example.org/receipts/2BeIHCIR.png"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_OloYx7ZQ5irL",
+          "type": "function",
+          "function": {
+            "name": "search_logs",
+            "arguments": "{\"query\": \"olga.oconnor@example.org\", \"since\": \"2026-09-01\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_OloYx7ZQ5irL",
+      "content": "{\"lines\": [\"Our quarterly review covers churn, onboarding time and support ticket volume.\", \"The cache hit ratio dropped to 71% after the last release, mostly on the search path.\", \"The team prefers concise answers with bullet points and a short summary at the end.\", \"Customer reported the mobile app freezes when switching accounts on Android 14.\", \"2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks\", \"Our dev pasted key sk-live-YLyt22Nf7wNRpIU7Ja1UKVWl in the ticket, please ignore it.\"]}"
+    },
+    {
+      "role": "user",
+      "name": "Olga",
+      "content": "For verification my SSN is 711-89-1369 and passport number 405889431. Customer reported the mobile app freezes when switching accounts on Android 14. Our dev pasted key sk-live-YLyt22Nf7wNRpIU7Ja1UKVWl in the ticket, please ignore it. We agreed to move the migration to next sprint because the schema review is still pending. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) Refund policy: purchases can be refunded within 30 days if the item is unused. For verification my SSN is 711-89-1369 and passport number 405889431. The deployment pipeline finished with two warnings about deprecated config keys. Hi, I'm Olga O'Connor, you can reach me at olga.oconnor@example.org or +44 20 7946 4688. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN FR14 2004 1010 0505 0001 3M02 606. Our quarterly review covers churn, onboarding time and support ticket volume. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN FR14 2004 1010 0505 0001 3M02 606. Our quarterly review covers churn, onboarding time and support ticket volume."
+    },
+    {
+      "role": "assistant",
+      "content": "Our dev pasted key sk-live-YLyt22Nf7wNRpIU7Ja1UKVWl in the ticket, please ignore it. Customer reported the mobile app freezes when switching accounts on Android 14. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks We agreed to move the migration to next sprint because the schema review is still pending. The cache hit ratio dropped to 71% after the last release, mostly on the search path. The cache hit ratio dropped to 71% after the last release, mostly on the search path. The team prefers concise answers with bullet points and a short summary at the end. Hi, I'm Olga O'Connor, you can reach me at olga.oconnor@example.org or +44 20 7946 4688. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN FR14 2004 1010 0505 0001 3M02 606. Customer reported the mobile app freezes when switching accounts on Android 14. Our quarterly review covers churn, onboarding time and support ticket volume. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) Hi, I'm Olga O'Connor, you can reach me at olga.oconnor@example.org or +44 20 7946 4688."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_W8W0Cy4B9fpZ",
+          "type": "function",
+          "function": {
+            "name": "lookup_customer",
+            "arguments": "{\"email\": \"olga.oconnor@example.org\", \"phone\": \"+44 20 7946 4688\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_W8W0Cy4B9fpZ",
+      "content": "{\"name\": \"Olga O'Connor\", \"address\": \"88 Elm Grove, Leeds LS6 2AB\", \"ssn\": \"711-89-1369\", \"tier\": \"gold\"}"
+    },
+    {
+      "role": "user",
+      "name": "Olga",
+      "content": "Our dev pasted key sk-live-YLyt22Nf7wNRpIU7Ja1UKVWl in the ticket, please ignore it. Please summarise the attached notes and list any open action items. The deployment pipeline finished with two warnings about deprecated config keys. Customer reported the mobile app freezes when switching accounts on Android 14. Our quarterly review covers churn, onboarding time and support ticket volume. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks The shared admin password is P@ss-UFE9KXm2Cc, rotate it after the call. Please summarise the attached notes and list any open action items. Please summarise the attached notes and list any open action items. The team prefers concise answers with bullet points and a short summary at the end."
+    },
+    {
+      "role": "assistant",
+      "content": "For verification my SSN is 711-89-1369 and passport number 405889431. The team prefers concise answers with bullet points and a short summary at the end. Our dev pasted key sk-live-YLyt22Nf7wNRpIU7Ja1UKVWl in the ticket, please ignore it. Please summarise the attached notes and list any open action items. Refund policy: purchases can be refunded within 30 days if the item is unused. Customer reported the mobile app freezes when switching accounts on Android 14. We agreed to move the migration to next sprint because the schema review is still pending. Please summarise the attached notes and list any open action items. Customer reported the mobile app freezes when switching accounts on Android 14. Customer reported the mobile app freezes when switching accounts on Android 14."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_A6VRhfV4DbJh",
+          "type": "function",
+          "function": {
+            "name": "lookup_customer",
+            "arguments": "{\"email\": \"olga.oconnor@example.org\", \"phone\": \"+44 20 7946 4688\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_A6VRhfV4DbJh",
+      "content": "{\"name\": \"Olga O'Connor\", \"address\": \"88 Elm Grove, Leeds LS6 2AB\", \"ssn\": \"711-89-1369\", \"tier\": \"gold\"}"
+    },
+    {
+      "role": "user",
+      "name": "Olga",
+      "content": "The billing address on file is 88 Elm Grove, Leeds LS6 2AB. The cache hit ratio dropped to 71% after the last release, mostly on the search path. The deployment pipeline finished with two warnings about deprecated config keys. Please summarise the attached notes and list any open action items. The shared admin password is P@ss-UFE9KXm2Cc, rotate it after the call. For verification my SSN is 711-89-1369 and passport number 405889431."
+    },
+    {
+      "role": "user",
+      "name": "Olga",
+      "content": "For verification my SSN is 711-89-1369 and passport number 405889431. Our quarterly review covers churn, onboarding time and support ticket volume. Our dev pasted key sk-live-YLyt22Nf7wNRpIU7Ja1UKVWl in the ticket, please ignore it. The team prefers concise answers with bullet points and a short summary at the end. Please summarise the attached notes and list any open action items. Our quarterly review covers churn, onboarding time and support ticket volume. Please summarise the attached notes and list any open action items. Our quarterly review covers churn, onboarding time and support ticket volume. Please summarise the attached notes and list any open action items. Please summarise the attached notes and list any open action items. Our dev pasted key sk-live-YLyt22Nf7wNRpIU7Ja1UKVWl in the ticket, please ignore it. The team prefers concise answers with bullet points and a short summary at the end."
+    },
+    {
+      "role": "assistant",
+      "content": "For verification my SSN is 711-89-1369 and passport number 405889431. Please summarise the attached notes and list any open action items. Our dev pasted key sk-live-YLyt22Nf7wNRpIU7Ja1UKVWl in the ticket, please ignore it. Please summarise the attached notes and list any open action items. For verification my SSN is 711-89-1369 and passport number 405889431. The cache hit ratio dropped to 71% after the last release, mostly on the search path. For verification my SSN is 711-89-1369 and passport number 405889431. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks"
+    },
+    {
+      "role": "user",
+      "name": "Olga",
+      "content": "The shared admin password is P@ss-UFE9KXm2Cc, rotate it after the call. For verification my SSN is 711-89-1369 and passport number 405889431. We agreed to move the migration to next sprint because the schema review is still pending. For verification my SSN is 711-89-1369 and passport number 405889431. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN FR14 2004 1010 0505 0001 3M02 606. Hi, I'm Olga O'Connor, you can reach me at olga.oconnor@example.org or +44 20 7946 4688. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) Hi, I'm Olga O'Connor, you can reach me at olga.oconnor@example.org or +44 20 7946 4688. For verification my SSN is 711-89-1369 and passport number 405889431. We agreed to move the migration to next sprint because the schema review is still pending. Refund policy: purchases can be refunded within 30 days if the item is unused. For verification my SSN is 711-89-1369 and passport number 405889431. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0)"
+    },
+    {
+      "role": "user",
+      "name": "Olga",
+      "content": "For verification my SSN is 711-89-1369 and passport number 405889431. Our quarterly review covers churn, onboarding time and support ticket volume. The shared admin password is P@ss-UFE9KXm2Cc, rotate it after the call. The cache hit ratio dropped to 71% after the last release, mostly on the search path. We agreed to move the migration to next sprint because the schema review is still pending. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN FR14 2004 1010 0505 0001 3M02 606."
+    },
+    {
+      "role": "user",
+      "name": "Olga",
+      "content": "The shared admin password is P@ss-UFE9KXm2Cc, rotate it after the call. The deployment pipeline finished with two warnings about deprecated config keys. The team prefers concise answers with bullet points and a short summary at the end. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN FR14 2004 1010 0505 0001 3M02 606. The deployment pipeline finished with two warnings about deprecated config keys. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) Our dev pasted key sk-live-YLyt22Nf7wNRpIU7Ja1UKVWl in the ticket, please ignore it. Refund policy: purchases can be refunded within 30 days if the item is unused. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) The team prefers concise answers with bullet points and a short summary at the end. Our dev pasted key sk-live-YLyt22Nf7wNRpIU7Ja1UKVWl in the ticket, please ignore it."
+    },
+    {
+      "role": "user",
+      "name": "Olga",
+      "content": "Hi, I'm Olga O'Connor, you can reach me at olga.oconnor@example.org or +44 20 7946 4688. For verification my SSN is 711-89-1369 and passport number 405889431. Customer reported the mobile app freezes when switching accounts on Android 14. Refund policy: purchases can be refunded within 30 days if the item is unused. The billing address on file is 88 Elm Grove, Leeds LS6 2AB. Our quarterly review covers churn, onboarding time and support ticket volume. Hi, I'm Olga O'Connor, you can reach me at olga.oconnor@example.org or +44 20 7946 4688. Customer reported the mobile app freezes when switching accounts on Android 14. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks The shared admin password is P@ss-UFE9KXm2Cc, rotate it after the call. Refund policy: purchases can be refunded within 30 days if the item is unused."
+    },
+    {
+      "role": "assistant",
+      "content": "The billing address on file is 88 Elm Grove, Leeds LS6 2AB. The shared admin password is P@ss-UFE9KXm2Cc, rotate it after the call. The cache hit ratio dropped to 71% after the last release, mostly on the search path. Please summarise the attached notes and list any open action items. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0)"
+    },
+    {
+      "role": "assistant",
+      "content": "Our dev pasted key sk-live-YLyt22Nf7wNRpIU7Ja1UKVWl in the ticket, please ignore it. Our quarterly review covers churn, onboarding time and support ticket volume. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks Customer reported the mobile app freezes when switching accounts on Android 14. The deployment pipeline finished with two warnings about deprecated config keys. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN FR14 2004 1010 0505 0001 3M02 606. For verification my SSN is 711-89-1369 and passport number 405889431. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN FR14 2004 1010 0505 0001 3M02 606. The cache hit ratio dropped to 71% after the last release, mostly on the search path. The billing address on file is 88 Elm Grove, Leeds LS6 2AB. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN FR14 2004 1010 0505 0001 3M02 606. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks"
+    },
+    {
+      "role": "user",
+      "name": "Olga",
+      "content": "Hi, I'm Olga O'Connor, you can reach me at olga.oconnor@example.org or +44 20 7946 4688. Refund policy: purchases can be refunded within 30 days if the item is unused. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) Customer reported the mobile app freezes when switching accounts on Android 14. Please summarise the attached notes and list any open action items. For verification my SSN is 711-89-1369 and passport number 405889431. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN FR14 2004 1010 0505 0001 3M02 606. Please summarise the attached notes and list any open action items. The shared admin password is P@ss-UFE9KXm2Cc, rotate it after the call. For verification my SSN is 711-89-1369 and passport number 405889431. The cache hit ratio dropped to 71% after the last release, mostly on the search path. The billing address on file is 88 Elm Grove, Leeds LS6 2AB. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0)"
+    },
+    {
+      "role": "user",
+      "name": "Olga",
+      "content": "Our dev pasted key sk-live-YLyt22Nf7wNRpIU7Ja1UKVWl in the ticket, please ignore it. Our quarterly review covers churn, onboarding time and support ticket volume. The team prefers concise answers with bullet points and a short summary at the end. The cache hit ratio dropped to 71% after the last release, mostly on the search path. Refund policy: purchases can be refunded within 30 days if the item is unused. Customer reported the mobile app freezes when switching accounts on Android 14. We agreed to move the migration to next sprint because the schema review is still pending. The shared admin password is P@ss-UFE9KXm2Cc, rotate it after the call. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks Refund policy: purchases can be refunded within 30 days if the item is unused."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_y5X0Ncm4q7Fi",
+          "type": "function",
+          "function": {
+            "name": "search_logs",
+            "arguments": "{\"query\": \"olga.oconnor@example.org\", \"since\": \"2026-09-01\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_y5X0Ncm4q7Fi",
+      "content": "{\"lines\": [\"We agreed to move the migration to next sprint because the schema review is still pending.\", \"Customer reported the mobile app freezes when switching accounts on Android 14.\", \"The team prefers concise answers with bullet points and a short summary at the end.\", \"The cache hit ratio dropped to 71% after the last release, mostly on the search path.\", \"The team prefers concise answers with bullet points and a short summary at the end.\", \"My card 5500 0000 0000 0004 was charged twice, please refund to IBAN FR14 2004 1010 0505 0001 3M02 606.\"]}"
+    },
+    {
+      "role": "assistant",
+      "content": "Hi, I'm Olga O'Connor, you can reach me at olga.oconnor@example.org or +44 20 7946 4688. Please summarise the attached notes and list any open action items. Our dev pasted key sk-live-YLyt22Nf7wNRpIU7Ja1UKVWl in the ticket, please ignore it. Please summarise the attached notes and list any open action items. Our quarterly review covers churn, onboarding time and support ticket volume. The deployment pipeline finished with two warnings about deprecated config keys. The team prefers concise answers with bullet points and a short summary at the end. Refund policy: purchases can be refunded within 30 days if the item is unused. The deployment pipeline finished with two warnings about deprecated config keys. The deployment pipeline finished with two warnings about deprecated config keys. The shared admin password is P@ss-UFE9KXm2Cc, rotate it after the call. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_OPUbXUdgGz6H",
+          "type": "function",
+          "function": {
+            "name": "lookup_customer",
+            "arguments": "{\"email\": \"olga.oconnor@example.org\", \"phone\": \"+44 20 7946 4688\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_OPUbXUdgGz6H",
+      "content": "{\"name\": \"Olga O'Connor\", \"address\": \"88 Elm Grove, Leeds LS6 2AB\", \"ssn\": \"711-89-1369\", \"tier\": \"gold\"}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_Gwts5bNnYkdK",
+          "type": "function",
+          "function": {
+            "name": "lookup_customer",
+            "arguments": "{\"email\": \"olga.oconnor@example.org\", \"phone\": \"+44 20 7946 4688\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_Gwts5bNnYkdK",
+      "content": "{\"name\": \"Olga O'Connor\", \"address\": \"88 Elm Grove, Leeds LS6 2AB\", \"ssn\": \"711-89-1369\", \"tier\": \"gold\"}"
+    },
+    {
+      "role": "user",
+      "name": "Olga",
+      "content": "Hi, I'm Olga O'Connor, you can reach me at olga.oconnor@example.org or +44 20 7946 4688. The deployment pipeline finished with two warnings about deprecated config keys. The cache hit ratio dropped to 71% after the last release, mostly on the search path. The billing address on file is 88 Elm Grove, Leeds LS6 2AB. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) For verification my SSN is 711-89-1369 and passport number 405889431."
+    },
+    {
+      "role": "assistant",
+      "content": "The billing address on file is 88 Elm Grove, Leeds LS6 2AB. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) Our dev pasted key sk-live-YLyt22Nf7wNRpIU7Ja1UKVWl in the ticket, please ignore it. Customer reported the mobile app freezes when switching accounts on Android 14. The deployment pipeline finished with two warnings about deprecated config keys."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_ltbsBs2K1uI8",
+          "type": "function",
+          "function": {
+            "name": "lookup_customer",
+            "arguments": "{\"email\": \"olga.oconnor@example.org\", \"phone\": \"+44 20 7946 4688\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_ltbsBs2K1uI8",
+      "content": "{\"name\": \"Olga O'Connor\", \"address\": \"88 Elm Grove, Leeds LS6 2AB\", \"ssn\": \"711-89-1369\", \"tier\": \"gold\"}"
+    },
+    {
+      "role": "assistant",
+      "content": "Our dev pasted key sk-live-YLyt22Nf7wNRpIU7Ja1UKVWl in the ticket, please ignore it. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks The billing address on file is 88 Elm Grove, Leeds LS6 2AB. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks Refund policy: purchases can be refunded within 30 days if the item is unused. Refund policy: purchases can be refunded within 30 days if the item is unused. The deployment pipeline finished with two warnings about deprecated config keys."
+    },
+    {
+      "role": "user",
+      "name": "Olga",
+      "content": "For verification my SSN is 711-89-1369 and passport number 405889431. We agreed to move the migration to next sprint because the schema review is still pending. Please summarise the attached notes and list any open action items. The billing address on file is 88 Elm Grove, Leeds LS6 2AB. We agreed to move the migration to next sprint because the schema review is still pending. The cache hit ratio dropped to 71% after the last release, mostly on the search path. The deployment pipeline finished with two warnings about deprecated config keys."
+    },
+    {
+      "role": "assistant",
+      "content": "My card 5500 0000 0000 0004 was charged twice, please refund to IBAN FR14 2004 1010 0505 0001 3M02 606. Refund policy: purchases can be refunded within 30 days if the item is unused. Our quarterly review covers churn, onboarding time and support ticket volume. The team prefers concise answers with bullet points and a short summary at the end. We agreed to move the migration to next sprint because the schema review is still pending. The cache hit ratio dropped to 71% after the last release, mostly on the search path. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) Our dev pasted key sk-live-YLyt22Nf7wNRpIU7Ja1UKVWl in the ticket, please ignore it. For verification my SSN is 711-89-1369 and passport number 405889431."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_QTu31DJiItnH",
+          "type": "function",
+          "function": {
+            "name": "lookup_customer",
+            "arguments": "{\"email\": \"olga.oconnor@example.org\", \"phone\": \"+44 20 7946 4688\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_QTu31DJiItnH",
+      "content": "{\"name\": \"Olga O'Connor\", \"address\": \"88 Elm Grove, Leeds LS6 2AB\", \"ssn\": \"711-89-1369\", \"tier\": \"gold\"}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_2jwXLGqnaZ7g",
+          "type": "function",
+          "function": {
+            "name": "issue_refund",
+            "arguments": "{\"transaction_id\": \"tx_lPFJmPQg\", \"iban\": \"FR14 2004 1010 0505 0001 3M02 606\", \"amount\": 84.2}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_2jwXLGqnaZ7g",
+      "content": "{\"status\": \"queued\", \"reference\": \"RF-63122\"}"
+    },
+    {
+      "role": "user",
+      "name": "Olga",
+      "content": "The shared admin password is P@ss-UFE9KXm2Cc, rotate it after the call. Our dev pasted key sk-live-YLyt22Nf7wNRpIU7Ja1UKVWl in the ticket, please ignore it. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN FR14 2004 1010 0505 0001 3M02 606. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) Customer reported the mobile app freezes when switching accounts on Android 14. We agreed to move the migration to next sprint because the schema review is still pending. Customer reported the mobile app freezes when switching accounts on Android 14. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks The team prefers concise answers with bullet points and a short summary at the end. The deployment pipeline finished with two warnings about deprecated config keys. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0)"
+    },
+    {
+      "role": "assistant",
+      "content": "Hi, I'm Olga O'Connor, you can reach me at olga.oconnor@example.org or +44 20 7946 4688. For verification my SSN is 711-89-1369 and passport number 405889431. We agreed to move the migration to next sprint because the schema review is still pending. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks The deployment pipeline finished with two warnings about deprecated config keys. Our dev pasted key sk-live-YLyt22Nf7wNRpIU7Ja1UKVWl in the ticket, please ignore it."
+    },
+    {
+      "role": "assistant",
+      "content": "My card 5500 0000 0000 0004 was charged twice, please refund to IBAN FR14 2004 1010 0505 0001 3M02 606. The cache hit ratio dropped to 71% after the last release, mostly on the search path. The deployment pipeline finished with two warnings about deprecated config keys. Refund policy: purchases can be refunded within 30 days if the item is unused. The cache hit ratio dropped to 71% after the last release, mostly on the search path. Customer reported the mobile app freezes when switching accounts on Android 14. Our quarterly review covers churn, onboarding time and support ticket volume. Our dev pasted key sk-live-YLyt22Nf7wNRpIU7Ja1UKVWl in the ticket, please ignore it. The cache hit ratio dropped to 71% after the last release, mostly on the search path. Our dev pasted key sk-live-YLyt22Nf7wNRpIU7Ja1UKVWl in the ticket, please ignore it."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_b1V6Lc6IW74C",
+          "type": "function",
+          "function": {
+            "name": "search_logs",
+            "arguments": "{\"query\": \"olga.oconnor@example.org\", \"since\": \"2026-09-01\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_b1V6Lc6IW74C",
+      "content": "{\"lines\": [\"Refund policy: purchases can be refunded within 30 days if the item is unused.\", \"Customer reported the mobile app freezes when switching accounts on Android 14.\", \"The team prefers concise answers with bullet points and a short summary at the end.\", \"The cache hit ratio dropped to 71% after the last release, mostly on the search path.\", \"Please summarise the attached notes and list any open action items.\", \"The billing address on file is 88 Elm Grove, Leeds LS6 2AB.\"]}"
+    },
+    {
+      "role": "user",
+      "name": "Olga",
+      "content": "Our dev pasted key sk-live-YLyt22Nf7wNRpIU7Ja1UKVWl in the ticket, please ignore it. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) The billing address on file is 88 Elm Grove, Leeds LS6 2AB. Our quarterly review covers churn, onboarding time and support ticket volume. The deployment pipeline finished with two warnings about deprecated config keys. The deployment pipeline finished with two warnings about deprecated config keys. Customer reported the mobile app freezes when switching accounts on Android 14. We agreed to move the migration to next sprint because the schema review is still pending. The billing address on file is 88 Elm Grove, Leeds LS6 2AB. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks Our quarterly review covers churn, onboarding time and support ticket volume. Please summarise the attached notes and list any open action items. The deployment pipeline finished with two warnings about deprecated config keys."
+    },
+    {
+      "role": "assistant",
+      "content": "For verification my SSN is 711-89-1369 and passport number 405889431. The team prefers concise answers with bullet points and a short summary at the end. The deployment pipeline finished with two warnings about deprecated config keys. The team prefers concise answers with bullet points and a short summary at the end. Hi, I'm Olga O'Connor, you can reach me at olga.oconnor@example.org or +44 20 7946 4688. Customer reported the mobile app freezes when switching accounts on Android 14. Customer reported the mobile app freezes when switching accounts on Android 14. We agreed to move the migration to next sprint because the schema review is still pending. The cache hit ratio dropped to 71% after the last release, mostly on the search path. Our quarterly review covers churn, onboarding time and support ticket volume. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks"
+    },
+    {
+      "role": "assistant",
+      "content": "For verification my SSN is 711-89-1369 and passport number 405889431. Refund policy: purchases can be refunded within 30 days if the item is unused. Customer reported the mobile app freezes when switching accounts on Android 14. The team prefers concise answers with bullet points and a short summary at the end. Please summarise the attached notes and list any open action items. The deployment pipeline finished with two warnings about deprecated config keys. Our dev pasted key sk-live-YLyt22Nf7wNRpIU7Ja1UKVWl in the ticket, please ignore it."
+    },
+    {
+      "role": "assistant",
+      "content": "Hi, I'm Olga O'Connor, you can reach me at olga.oconnor@example.org or +44 20 7946 4688. The cache hit ratio dropped to 71% after the last release, mostly on the search path. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) Our quarterly review covers churn, onboarding time and support ticket volume. Customer reported the mobile app freezes when switching accounts on Android 14. Customer reported the mobile app freezes when switching accounts on Android 14. Refund policy: purchases can be refunded within 30 days if the item is unused. Our quarterly review covers churn, onboarding time and support ticket volume. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0)"
+    },
+    {
+      "role": "user",
+      "name": "Olga",
+      "content": "For verification my SSN is 711-89-1369 and passport number 405889431. Refund policy: purchases can be refunded within 30 days if the item is unused. The deployment pipeline finished with two warnings about deprecated config keys. Our dev pasted key sk-live-YLyt22Nf7wNRpIU7Ja1UKVWl in the ticket, please ignore it. The team prefers concise answers with bullet points and a short summary at the end. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0)"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_PnhWjXf2txD8",
+          "type": "function",
+          "function": {
+            "name": "search_logs",
+            "arguments": "{\"query\": \"olga.oconnor@example.org\", \"since\": \"2026-09-01\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_PnhWjXf2txD8",
+      "content": "{\"lines\": [\"Please summarise the attached notes and list any open action items.\", \"The team prefers concise answers with bullet points and a short summary at the end.\", \"2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0)\", \"Customer reported the mobile app freezes when switching accounts on Android 14.\", \"Refund policy: purchases can be refunded within 30 days if the item is unused.\", \"For verification my SSN is 711-89-1369 and passport number 405889431.\"]}"
+    },
+    {
+      "role": "user",
+      "name": "Olga",
+      "content": "Hi, I'm Olga O'Connor, you can reach me at olga.oconnor@example.org or +44 20 7946 4688. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN FR14 2004 1010 0505 0001 3M02 606. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks The deployment pipeline finished with two warnings about deprecated config keys. Hi, I'm Olga O'Connor, you can reach me at olga.oconnor@example.org or +44 20 7946 4688. The team prefers concise answers with bullet points and a short summary at the end. The team prefers concise answers with bullet points and a short summary at the end. Our quarterly review covers churn, onboarding time and support ticket volume. We agreed to move the migration to next sprint because the schema review is still pending. The deployment pipeline finished with two warnings about deprecated config keys. Please summarise the attached notes and list any open action items."
+    },
+    {
+      "role": "user",
+      "name": "Olga",
+      "content": "Hi, I'm Olga O'Connor, you can reach me at olga.oconnor@example.org or +44 20 7946 4688. Please summarise the attached notes and list any open action items. The billing address on file is 88 Elm Grove, Leeds LS6 2AB. Please summarise the attached notes and list any open action items. Customer reported the mobile app freezes when switching accounts on Android 14. Customer reported the mobile app freezes when switching accounts on Android 14. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) Our quarterly review covers churn, onboarding time and support ticket volume. Refund policy: purchases can be refunded within 30 days if the item is unused. Our quarterly review covers churn, onboarding time and support ticket volume. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) My card 5500 0000 0000 0004 was charged twice, please refund to IBAN FR14 2004 1010 0505 0001 3M02 606."
+    }
+  ]
+}

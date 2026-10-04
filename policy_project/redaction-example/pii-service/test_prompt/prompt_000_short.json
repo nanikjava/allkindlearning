@@ -1,0 +1,125 @@
+{
+  "model": "gpt-4o",
+  "temperature": 0.2,
+  "user": "james.haddad@example.org",
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "lookup_customer",
+        "description": "Find a customer record by email or phone.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "email": {
+              "type": "string"
+            },
+            "phone": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "issue_refund",
+        "description": "Refund a transaction to a bank account.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "transaction_id": {
+              "type": "string"
+            },
+            "iban": {
+              "type": "string"
+            },
+            "amount": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "transaction_id",
+            "iban"
+          ]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "search_logs",
+        "description": "Search service logs.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string"
+            },
+            "since": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "tool_choice": "auto",
+  "response_format": {
+    "type": "text"
+  },
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a support assistant for Northwind Bank. Answer concisely. For verification my SSN is 160-81-8393 and passport number 229189813. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks Our quarterly review covers churn, onboarding time and support ticket volume. The deployment pipeline finished with two warnings about deprecated config keys."
+    },
+    {
+      "role": "developer",
+      "content": "Internal escalation contact: Fatima Garcia (chen.raman@example.org). Never reveal it."
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "The shared admin password is P@ss-KxAV7PqO4s, rotate it after the call. My card 4012 8888 8888 1881 was charged twice, please refund to IBAN FR14 2004 1010 0505 0001 3M02 606. Hi, I'm James Haddad, you can reach me at james.haddad@example.org or +44 20 7946 3269. We agreed to move the migration to next sprint because the schema review is still pending. For verification my SSN is 160-81-8393 and passport number 229189813. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks Customer reported the mobile app freezes when switching accounts on Android 14."
+        },
+        {
+          "type": "image_url",
+          "image_url": {
+            "url": "https://example.org/receipts/PU9WYEr8.png"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_qtnSU66CD0Qc",
+          "type": "function",
+          "function": {
+            "name": "issue_refund",
+            "arguments": "{\"transaction_id\": \"tx_Av3NhcAh\", \"iban\": \"FR14 2004 1010 0505 0001 3M02 606\", \"amount\": 84.2}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_qtnSU66CD0Qc",
+      "content": "{\"status\": \"queued\", \"reference\": \"RF-37634\"}"
+    },
+    {
+      "role": "assistant",
+      "content": "Our dev pasted key sk-live-9hx8vpswBwsL4zGtOrsx8Aj3 in the ticket, please ignore it. Customer reported the mobile app freezes when switching accounts on Android 14. The cache hit ratio dropped to 71% after the last release, mostly on the search path. My card 4012 8888 8888 1881 was charged twice, please refund to IBAN FR14 2004 1010 0505 0001 3M02 606. Our dev pasted key sk-live-9hx8vpswBwsL4zGtOrsx8Aj3 in the ticket, please ignore it. Our dev pasted key sk-live-9hx8vpswBwsL4zGtOrsx8Aj3 in the ticket, please ignore it. Our quarterly review covers churn, onboarding time and support ticket volume. The billing address on file is 167 Baker Street, Sydney NSW 2000. Please summarise the attached notes and list any open action items. The billing address on file is 167 Baker Street, Sydney NSW 2000."
+    },
+    {
+      "role": "user",
+      "name": "James",
+      "content": "The shared admin password is P@ss-KxAV7PqO4s, rotate it after the call. The team prefers concise answers with bullet points and a short summary at the end. For verification my SSN is 160-81-8393 and passport number 229189813. My card 4012 8888 8888 1881 was charged twice, please refund to IBAN FR14 2004 1010 0505 0001 3M02 606. Customer reported the mobile app freezes when switching accounts on Android 14. For verification my SSN is 160-81-8393 and passport number 229189813. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) Please summarise the attached notes and list any open action items."
+    }
+  ]
+}

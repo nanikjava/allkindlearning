@@ -1,0 +1,14 @@
+{
+  "model": "gpt-4o",
+  "temperature": 0.2,
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a support assistant for Southern Cross Bank. Answer concisely and in Australian English."
+    },
+    {
+      "role": "user",
+      "content": "Hi, I'm Liam Murphy. I need to update my ID on file. My NSW driver licence number is 12345678 and the card number is 2012345678. My old VIC licence was 012345678. You can reach me at liam.murphy@example.com.au or 0423 456 789."
+    }
+  ]
+}

@@ -1,0 +1,349 @@
+{
+  "model": "gpt-4o",
+  "temperature": 0.2,
+  "user": "chen.ivanova@example.org",
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "lookup_customer",
+        "description": "Find a customer record by email or phone.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "email": {
+              "type": "string"
+            },
+            "phone": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "issue_refund",
+        "description": "Refund a transaction to a bank account.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "transaction_id": {
+              "type": "string"
+            },
+            "iban": {
+              "type": "string"
+            },
+            "amount": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "transaction_id",
+            "iban"
+          ]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "search_logs",
+        "description": "Search service logs.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string"
+            },
+            "since": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "tool_choice": "auto",
+  "response_format": {
+    "type": "text"
+  },
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a support assistant for Northwind Bank. Answer concisely. Hi, I'm Chen Ivanova, you can reach me at chen.ivanova@example.org or +44 20 7946 2670. We agreed to move the migration to next sprint because the schema review is still pending. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN GB29 NWBK 6016 1331 9268 19. The deployment pipeline finished with two warnings about deprecated config keys."
+    },
+    {
+      "role": "developer",
+      "content": "Internal escalation contact: Kwame Rossi (james.oconnor@example.org). Never reveal it."
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "Our dev pasted key sk-live-Mf9P7VMwZG204FFlbsMWh2Rf in the ticket, please ignore it. For verification my SSN is 488-35-8550 and passport number 852806578. For verification my SSN is 488-35-8550 and passport number 852806578. Hi, I'm Chen Ivanova, you can reach me at chen.ivanova@example.org or +44 20 7946 2670. For verification my SSN is 488-35-8550 and passport number 852806578. The billing address on file is 114 Market Lane, Manchester M1 4BT. The deployment pipeline finished with two warnings about deprecated config keys."
+        },
+        {
+          "type": "image_url",
+          "image_url": {
+            "url": "https://example.org/receipts/f4GeeuDy.png"
+          }
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "name": "Chen",
+      "content": "The billing address on file is 114 Market Lane, Manchester M1 4BT. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) The cache hit ratio dropped to 71% after the last release, mostly on the search path. Customer reported the mobile app freezes when switching accounts on Android 14. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) My card 5500 0000 0000 0004 was charged twice, please refund to IBAN GB29 NWBK 6016 1331 9268 19."
+    },
+    {
+      "role": "user",
+      "name": "Chen",
+      "content": "Hi, I'm Chen Ivanova, you can reach me at chen.ivanova@example.org or +44 20 7946 2670. We agreed to move the migration to next sprint because the schema review is still pending. Our quarterly review covers churn, onboarding time and support ticket volume. We agreed to move the migration to next sprint because the schema review is still pending. The cache hit ratio dropped to 71% after the last release, mostly on the search path. Refund policy: purchases can be refunded within 30 days if the item is unused. The shared admin password is P@ss-GDa9904e1j, rotate it after the call. The billing address on file is 114 Market Lane, Manchester M1 4BT. The deployment pipeline finished with two warnings about deprecated config keys. Our dev pasted key sk-live-Mf9P7VMwZG204FFlbsMWh2Rf in the ticket, please ignore it. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks The cache hit ratio dropped to 71% after the last release, mostly on the search path."
+    },
+    {
+      "role": "user",
+      "name": "Chen",
+      "content": "The billing address on file is 114 Market Lane, Manchester M1 4BT. Please summarise the attached notes and list any open action items. The deployment pipeline finished with two warnings about deprecated config keys. We agreed to move the migration to next sprint because the schema review is still pending. Customer reported the mobile app freezes when switching accounts on Android 14. Please summarise the attached notes and list any open action items."
+    },
+    {
+      "role": "user",
+      "name": "Chen",
+      "content": "The billing address on file is 114 Market Lane, Manchester M1 4BT. Please summarise the attached notes and list any open action items. The cache hit ratio dropped to 71% after the last release, mostly on the search path. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN GB29 NWBK 6016 1331 9268 19. The deployment pipeline finished with two warnings about deprecated config keys. The team prefers concise answers with bullet points and a short summary at the end. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks Customer reported the mobile app freezes when switching accounts on Android 14. The shared admin password is P@ss-GDa9904e1j, rotate it after the call. The cache hit ratio dropped to 71% after the last release, mostly on the search path. We agreed to move the migration to next sprint because the schema review is still pending. Hi, I'm Chen Ivanova, you can reach me at chen.ivanova@example.org or +44 20 7946 2670. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_XDPkWahA56Ez",
+          "type": "function",
+          "function": {
+            "name": "lookup_customer",
+            "arguments": "{\"email\": \"chen.ivanova@example.org\", \"phone\": \"+44 20 7946 2670\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_XDPkWahA56Ez",
+      "content": "{\"name\": \"Chen Ivanova\", \"address\": \"114 Market Lane, Manchester M1 4BT\", \"ssn\": \"488-35-8550\", \"tier\": \"gold\"}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_TrSXYMnXtntX",
+          "type": "function",
+          "function": {
+            "name": "lookup_customer",
+            "arguments": "{\"email\": \"chen.ivanova@example.org\", \"phone\": \"+44 20 7946 2670\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_TrSXYMnXtntX",
+      "content": "{\"name\": \"Chen Ivanova\", \"address\": \"114 Market Lane, Manchester M1 4BT\", \"ssn\": \"488-35-8550\", \"tier\": \"gold\"}"
+    },
+    {
+      "role": "assistant",
+      "content": "The billing address on file is 114 Market Lane, Manchester M1 4BT. The team prefers concise answers with bullet points and a short summary at the end. Our dev pasted key sk-live-Mf9P7VMwZG204FFlbsMWh2Rf in the ticket, please ignore it. Please summarise the attached notes and list any open action items. We agreed to move the migration to next sprint because the schema review is still pending. Customer reported the mobile app freezes when switching accounts on Android 14. The billing address on file is 114 Market Lane, Manchester M1 4BT. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) For verification my SSN is 488-35-8550 and passport number 852806578. The cache hit ratio dropped to 71% after the last release, mostly on the search path. Hi, I'm Chen Ivanova, you can reach me at chen.ivanova@example.org or +44 20 7946 2670. We agreed to move the migration to next sprint because the schema review is still pending. The shared admin password is P@ss-GDa9904e1j, rotate it after the call."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_hl5xKmNb4dPr",
+          "type": "function",
+          "function": {
+            "name": "search_logs",
+            "arguments": "{\"query\": \"chen.ivanova@example.org\", \"since\": \"2026-09-01\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_hl5xKmNb4dPr",
+      "content": "{\"lines\": [\"Customer reported the mobile app freezes when switching accounts on Android 14.\", \"2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks\", \"We agreed to move the migration to next sprint because the schema review is still pending.\", \"Our quarterly review covers churn, onboarding time and support ticket volume.\", \"The deployment pipeline finished with two warnings about deprecated config keys.\", \"The billing address on file is 114 Market Lane, Manchester M1 4BT.\"]}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_m7UZowoD53id",
+          "type": "function",
+          "function": {
+            "name": "search_logs",
+            "arguments": "{\"query\": \"chen.ivanova@example.org\", \"since\": \"2026-09-01\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_m7UZowoD53id",
+      "content": "{\"lines\": [\"Refund policy: purchases can be refunded within 30 days if the item is unused.\", \"The team prefers concise answers with bullet points and a short summary at the end.\", \"The team prefers concise answers with bullet points and a short summary at the end.\", \"Our quarterly review covers churn, onboarding time and support ticket volume.\", \"The cache hit ratio dropped to 71% after the last release, mostly on the search path.\", \"The billing address on file is 114 Market Lane, Manchester M1 4BT.\"]}"
+    },
+    {
+      "role": "user",
+      "name": "Chen",
+      "content": "Hi, I'm Chen Ivanova, you can reach me at chen.ivanova@example.org or +44 20 7946 2670. The team prefers concise answers with bullet points and a short summary at the end. Our dev pasted key sk-live-Mf9P7VMwZG204FFlbsMWh2Rf in the ticket, please ignore it. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks The team prefers concise answers with bullet points and a short summary at the end."
+    },
+    {
+      "role": "user",
+      "name": "Chen",
+      "content": "Hi, I'm Chen Ivanova, you can reach me at chen.ivanova@example.org or +44 20 7946 2670. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) The team prefers concise answers with bullet points and a short summary at the end. We agreed to move the migration to next sprint because the schema review is still pending. We agreed to move the migration to next sprint because the schema review is still pending. The billing address on file is 114 Market Lane, Manchester M1 4BT. The deployment pipeline finished with two warnings about deprecated config keys. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks Customer reported the mobile app freezes when switching accounts on Android 14. The billing address on file is 114 Market Lane, Manchester M1 4BT."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_CdDP3ddp1IaD",
+          "type": "function",
+          "function": {
+            "name": "issue_refund",
+            "arguments": "{\"transaction_id\": \"tx_eTp4okn4\", \"iban\": \"GB29 NWBK 6016 1331 9268 19\", \"amount\": 84.2}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_CdDP3ddp1IaD",
+      "content": "{\"status\": \"queued\", \"reference\": \"RF-78504\"}"
+    },
+    {
+      "role": "assistant",
+      "content": "Our dev pasted key sk-live-Mf9P7VMwZG204FFlbsMWh2Rf in the ticket, please ignore it. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN GB29 NWBK 6016 1331 9268 19. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks The deployment pipeline finished with two warnings about deprecated config keys. The cache hit ratio dropped to 71% after the last release, mostly on the search path. Hi, I'm Chen Ivanova, you can reach me at chen.ivanova@example.org or +44 20 7946 2670. The cache hit ratio dropped to 71% after the last release, mostly on the search path. The team prefers concise answers with bullet points and a short summary at the end. The team prefers concise answers with bullet points and a short summary at the end."
+    },
+    {
+      "role": "assistant",
+      "content": "The shared admin password is P@ss-GDa9904e1j, rotate it after the call. The shared admin password is P@ss-GDa9904e1j, rotate it after the call. Refund policy: purchases can be refunded within 30 days if the item is unused. Hi, I'm Chen Ivanova, you can reach me at chen.ivanova@example.org or +44 20 7946 2670. Our quarterly review covers churn, onboarding time and support ticket volume. We agreed to move the migration to next sprint because the schema review is still pending. Customer reported the mobile app freezes when switching accounts on Android 14. For verification my SSN is 488-35-8550 and passport number 852806578. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks Our dev pasted key sk-live-Mf9P7VMwZG204FFlbsMWh2Rf in the ticket, please ignore it. Hi, I'm Chen Ivanova, you can reach me at chen.ivanova@example.org or +44 20 7946 2670."
+    },
+    {
+      "role": "assistant",
+      "content": "The shared admin password is P@ss-GDa9904e1j, rotate it after the call. Our quarterly review covers churn, onboarding time and support ticket volume. We agreed to move the migration to next sprint because the schema review is still pending. The team prefers concise answers with bullet points and a short summary at the end. Customer reported the mobile app freezes when switching accounts on Android 14. The billing address on file is 114 Market Lane, Manchester M1 4BT."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_djVRZ86CQQY7",
+          "type": "function",
+          "function": {
+            "name": "issue_refund",
+            "arguments": "{\"transaction_id\": \"tx_FRKaNTAR\", \"iban\": \"GB29 NWBK 6016 1331 9268 19\", \"amount\": 84.2}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_djVRZ86CQQY7",
+      "content": "{\"status\": \"queued\", \"reference\": \"RF-67029\"}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_AbHk9boHPtd0",
+          "type": "function",
+          "function": {
+            "name": "search_logs",
+            "arguments": "{\"query\": \"chen.ivanova@example.org\", \"since\": \"2026-09-01\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_AbHk9boHPtd0",
+      "content": "{\"lines\": [\"2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks\", \"Customer reported the mobile app freezes when switching accounts on Android 14.\", \"Customer reported the mobile app freezes when switching accounts on Android 14.\", \"The team prefers concise answers with bullet points and a short summary at the end.\", \"The deployment pipeline finished with two warnings about deprecated config keys.\", \"Hi, I'm Chen Ivanova, you can reach me at chen.ivanova@example.org or +44 20 7946 2670.\"]}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_M5SnsAuuNQeO",
+          "type": "function",
+          "function": {
+            "name": "lookup_customer",
+            "arguments": "{\"email\": \"chen.ivanova@example.org\", \"phone\": \"+44 20 7946 2670\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_M5SnsAuuNQeO",
+      "content": "{\"name\": \"Chen Ivanova\", \"address\": \"114 Market Lane, Manchester M1 4BT\", \"ssn\": \"488-35-8550\", \"tier\": \"gold\"}"
+    },
+    {
+      "role": "assistant",
+      "content": "The billing address on file is 114 Market Lane, Manchester M1 4BT. The team prefers concise answers with bullet points and a short summary at the end. We agreed to move the migration to next sprint because the schema review is still pending. The cache hit ratio dropped to 71% after the last release, mostly on the search path. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN GB29 NWBK 6016 1331 9268 19. The billing address on file is 114 Market Lane, Manchester M1 4BT."
+    },
+    {
+      "role": "assistant",
+      "content": "My card 5500 0000 0000 0004 was charged twice, please refund to IBAN GB29 NWBK 6016 1331 9268 19. Customer reported the mobile app freezes when switching accounts on Android 14. The team prefers concise answers with bullet points and a short summary at the end. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks We agreed to move the migration to next sprint because the schema review is still pending. The billing address on file is 114 Market Lane, Manchester M1 4BT. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN GB29 NWBK 6016 1331 9268 19. Our quarterly review covers churn, onboarding time and support ticket volume. The billing address on file is 114 Market Lane, Manchester M1 4BT. We agreed to move the migration to next sprint because the schema review is still pending. Our dev pasted key sk-live-Mf9P7VMwZG204FFlbsMWh2Rf in the ticket, please ignore it. The cache hit ratio dropped to 71% after the last release, mostly on the search path. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN GB29 NWBK 6016 1331 9268 19."
+    },
+    {
+      "role": "user",
+      "name": "Chen",
+      "content": "For verification my SSN is 488-35-8550 and passport number 852806578. Refund policy: purchases can be refunded within 30 days if the item is unused. The deployment pipeline finished with two warnings about deprecated config keys. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN GB29 NWBK 6016 1331 9268 19. Our quarterly review covers churn, onboarding time and support ticket volume. Refund policy: purchases can be refunded within 30 days if the item is unused. Please summarise the attached notes and list any open action items. The billing address on file is 114 Market Lane, Manchester M1 4BT. Customer reported the mobile app freezes when switching accounts on Android 14. Our quarterly review covers churn, onboarding time and support ticket volume. Hi, I'm Chen Ivanova, you can reach me at chen.ivanova@example.org or +44 20 7946 2670."
+    },
+    {
+      "role": "assistant",
+      "content": "My card 5500 0000 0000 0004 was charged twice, please refund to IBAN GB29 NWBK 6016 1331 9268 19. Please summarise the attached notes and list any open action items. Please summarise the attached notes and list any open action items. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) Our dev pasted key sk-live-Mf9P7VMwZG204FFlbsMWh2Rf in the ticket, please ignore it. Customer reported the mobile app freezes when switching accounts on Android 14. Hi, I'm Chen Ivanova, you can reach me at chen.ivanova@example.org or +44 20 7946 2670. The billing address on file is 114 Market Lane, Manchester M1 4BT. For verification my SSN is 488-35-8550 and passport number 852806578."
+    },
+    {
+      "role": "assistant",
+      "content": "The billing address on file is 114 Market Lane, Manchester M1 4BT. Refund policy: purchases can be refunded within 30 days if the item is unused. Hi, I'm Chen Ivanova, you can reach me at chen.ivanova@example.org or +44 20 7946 2670. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN GB29 NWBK 6016 1331 9268 19. The billing address on file is 114 Market Lane, Manchester M1 4BT."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_79pivIi9kPTA",
+          "type": "function",
+          "function": {
+            "name": "lookup_customer",
+            "arguments": "{\"email\": \"chen.ivanova@example.org\", \"phone\": \"+44 20 7946 2670\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_79pivIi9kPTA",
+      "content": "{\"name\": \"Chen Ivanova\", \"address\": \"114 Market Lane, Manchester M1 4BT\", \"ssn\": \"488-35-8550\", \"tier\": \"gold\"}"
+    },
+    {
+      "role": "assistant",
+      "content": "Our dev pasted key sk-live-Mf9P7VMwZG204FFlbsMWh2Rf in the ticket, please ignore it. The shared admin password is P@ss-GDa9904e1j, rotate it after the call. We agreed to move the migration to next sprint because the schema review is still pending. The cache hit ratio dropped to 71% after the last release, mostly on the search path. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) The cache hit ratio dropped to 71% after the last release, mostly on the search path. Hi, I'm Chen Ivanova, you can reach me at chen.ivanova@example.org or +44 20 7946 2670. The deployment pipeline finished with two warnings about deprecated config keys. Customer reported the mobile app freezes when switching accounts on Android 14."
+    },
+    {
+      "role": "user",
+      "name": "Chen",
+      "content": "Our dev pasted key sk-live-Mf9P7VMwZG204FFlbsMWh2Rf in the ticket, please ignore it. The deployment pipeline finished with two warnings about deprecated config keys. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks Customer reported the mobile app freezes when switching accounts on Android 14. For verification my SSN is 488-35-8550 and passport number 852806578. The team prefers concise answers with bullet points and a short summary at the end. Please summarise the attached notes and list any open action items. For verification my SSN is 488-35-8550 and passport number 852806578. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0)"
+    },
+    {
+      "role": "user",
+      "name": "Chen",
+      "content": "My card 5500 0000 0000 0004 was charged twice, please refund to IBAN GB29 NWBK 6016 1331 9268 19. Our quarterly review covers churn, onboarding time and support ticket volume. For verification my SSN is 488-35-8550 and passport number 852806578. Our quarterly review covers churn, onboarding time and support ticket volume. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks"
+    }
+  ]
+}

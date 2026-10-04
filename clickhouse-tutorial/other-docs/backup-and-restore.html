@@ -1,0 +1,381 @@
+<title>ClickHouse Backup and Restore</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono&display=swap">
+<style>
+/* Layout: single reading column, figures on light "paper" panels, tables scroll inside their own box */
+:root{--bg:#f7f8fa;--fg:#1c2330;--muted:#5b6474;--line:#d9dee7;--accent:#1f6f5c;--panel:#ffffff;--code:#eef1f5;--warn:#9a5b00;--warnbg:#fff6e5;
+--display:"Fraunces",Georgia,serif;--body:"Source Sans 3",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12161d;--fg:#e4e8ef;--muted:#9aa4b4;--line:#2c3440;--accent:#5fc3a6;--panel:#1a2029;--code:#1f2631;--warn:#f0b65a;--warnbg:#2a2316;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12161d;--fg:#e4e8ef;--muted:#9aa4b4;--line:#2c3440;--accent:#5fc3a6;--panel:#1a2029;--code:#1f2631;--warn:#f0b65a;--warnbg:#2a2316;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font:17px/1.6 var(--body)}
+main{max-width:880px;margin:0 auto;padding-block:40px 80px;padding-inline:20px}
+h1{font-family:var(--display);font-size:2.3rem;line-height:1.15;text-wrap:balance;margin:0 0 .6rem}
+h2{font-family:var(--display);font-size:1.6rem;margin:3rem 0 .8rem;text-wrap:balance;border-top:1px solid var(--line);padding-top:1.6rem}
+h3{font-size:1.15rem;margin:2rem 0 .5rem;color:var(--accent)}
+p,li{max-width:68ch} a{color:var(--accent)} hr{display:none}
+code{font-family:var(--mono);font-size:.85em;background:var(--code);padding:.1em .35em;border-radius:4px}
+pre{background:var(--code);padding:14px 16px;border-radius:8px;overflow-x:auto;line-height:1.45} pre code{background:none;padding:0}
+.tw{overflow-x:auto;margin:1rem 0} table{border-collapse:collapse;font-size:.92rem;min-width:100%}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top} th{color:var(--muted);font-weight:600;font-size:.8rem;letter-spacing:.04em;text-transform:uppercase}
+.fig{margin:1.2rem 0;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px;overflow-x:auto}
+.fig svg{display:block;max-width:100%;height:auto}
+.eyebrow{color:var(--muted);font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;margin-bottom:0}
+.box{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--accent);border-radius:8px;padding:6px 18px;margin:1.2rem 0}
+.warn{background:var(--warnbg);border:1px solid var(--line);border-left:4px solid var(--warn);border-radius:8px;padding:6px 18px;margin:1.2rem 0}
+.warn strong:first-child{color:var(--warn)}
+.tested{color:var(--muted);font-size:.85rem}
+</style>
+<main>
+<p class="eyebrow">Other docs · Operations</p>
+<h1>Backing up and restoring ClickHouse</h1>
+<p>This is a reference for backing up and restoring a self-hosted ClickHouse cluster such as the one in this tutorial (2 shards × 2 replicas + 3 Keeper nodes). <a href="../lessons/07-backup-restore/README.md">Lesson 07</a> walks you through your first backup and restore. This document goes further: how to choose a method, the settings that matter, how to restore after each kind of incident, how to test restores, and the mistakes that cause restores to fail.</p>
+<p>It is based on the official ClickHouse documentation, Altinity's guidance and the <code>clickhouse-backup</code> project, and write-ups from people running ClickHouse in production (see <a href="#sources">Sources</a>). Statements marked <span class="tested">“tested on 25.8”</span> were checked against this tutorial's <code>cluster/</code> setup (ClickHouse 25.8).</p>
+
+<div class="box">
+<p><strong>The short version</strong></p>
+<ol>
+<li><strong>Replication is not a backup.</strong> A <code>DROP</code>, a bad <code>ALTER … DELETE</code> or a bad load is copied to every replica within seconds.</li>
+<li>Use <strong>native <code>BACKUP</code>/<code>RESTORE</code> … <code>ON CLUSTER</code> to S3</strong> (or GCS/Azure) by default. Reach for <code>clickhouse-backup</code> when you need its extras.</li>
+<li>Take a <strong>weekly full backup plus daily (or hourly) incrementals</strong>, sized to your RPO. Run them <code>ASYNC</code>.</li>
+<li>Store backups <strong>outside the cluster's blast radius</strong>: a separate account, write-once storage (object lock), with credentials ClickHouse cannot use to delete them.</li>
+<li>Back up <strong>more than table data</strong>: users, roles and grants; server config in git; and the Kafka offsets or source data you need to replay.</li>
+<li>If you restore under a new name, use <strong><code>{uuid}</code> in <code>ReplicatedMergeTree</code> Keeper paths</strong>. Hard-coded paths make that restore fail.</li>
+<li><strong>Alert</strong> when a backup fails <em>and</em> when the newest good backup is older than your schedule allows.</li>
+<li><strong>Test restores on a schedule</strong>, onto a separate cluster, and time them against your RTO. A backup you have never restored is a guess.</li>
+</ol>
+</div>
+
+<h2>1. What a backup must protect you from</h2>
+<p>Begin with the failures you need to survive, then check which protection covers each one. Replication and backups cover different failures:</p>
+<div class="tw"><table><thead><tr><th>Incident</th><th>Replication helps?</th><th>Backup helps?</th><th>Notes</th></tr></thead><tbody>
+<tr><td>Disk or node dies</td><td>Yes</td><td>Yes, but slower</td><td>The other replica keeps serving. Rebuild the lost replica from it; you don't need a restore.</td></tr>
+<tr><td>Availability zone lost</td><td>Yes, if replicas are spread across AZs</td><td>Yes</td><td>Lay out replicas so every shard has one in another AZ.</td></tr>
+<tr><td><code>DROP</code> / <code>TRUNCATE</code> by mistake</td><td><strong>No</strong></td><td>Yes</td><td>Every replica runs the DDL. <code>max_table_size_to_drop</code> (default 50 GB) is the only built-in guard.</td></tr>
+<tr><td>Bad <code>ALTER … DELETE/UPDATE</code>, bad load, application bug</td><td><strong>No</strong></td><td>Yes</td><td>Usually affects only some partitions. Restore them on their own (playbook B).</td></tr>
+<tr><td>Region lost</td><td>Only with cross-region replicas</td><td>Yes, if the backup is in another region</td><td>Replicate the backup bucket to another region (S3 CRR).</td></tr>
+<tr><td>Stolen credentials, ransomware, malicious insider</td><td><strong>No</strong></td><td>Only if the backups are immutable</td><td>If an attacker with ClickHouse's credentials can delete the backups, they will.</td></tr>
+<tr><td>Keeper metadata lost</td><td>—</td><td>Not needed</td><td><code>SYSTEM RESTORE REPLICA</code> rebuilds the metadata from the data on disk (Lesson 09).</td></tr>
+</tbody></table></div>
+<p>Then write down two numbers, because they decide everything that follows:</p>
+<ul>
+<li><strong>RPO</strong> (recovery point objective): how much recent data you can afford to lose. This sets how often you back up, or what you need to be able to replay from upstream.</li>
+<li><strong>RTO</strong> (recovery time objective): how long a restore may take. This sets the backup format, incremental chain length, network bandwidth, and whether you need a warm standby.</li>
+</ul>
+<p>Example targets for ShopStream, the tutorial's demo company: RPO 1 hour (hourly incrementals plus Kafka replay), RTO 4 hours for the events tables.</p>
+
+<h2>2. What to back up</h2>
+<p><code>BACKUP DATABASE</code> covers only part of what you need to rebuild a working cluster.</p>
+<div class="tw"><table><thead><tr><th>Item</th><th>How to protect it</th></tr></thead><tbody>
+<tr><td>Table data and DDL (tables, views, MVs, dictionaries)</td><td><code>BACKUP DATABASE … ON CLUSTER</code>. For materialized views, back up the <code>TO</code> target table as well as the view; the view itself holds no data.</td></tr>
+<tr><td>Users, roles, grants, quotas, settings profiles, row policies (SQL-managed)</td><td><code>BACKUP TABLE system.users, TABLE system.roles, TABLE system.settings_profiles, TABLE system.row_policies, TABLE system.quotas …</code>, or <code>BACKUP ALL</code>. Grants travel with their users and roles. <span class="tested">Tested on 25.8.</span> The backup contains password hashes, so protect it like a secret.</td></tr>
+<tr><td>Users defined in <code>users.xml</code>, server config (<code>config.d/</code>, macros, <code>remote_servers</code>, storage policies)</td><td>Not included in <code>BACKUP</code>. Keep them in git and deploy with infrastructure as code (IaC). (<code>clickhouse-backup --configs</code> can also save them.)</td></tr>
+<tr><td>Schema history</td><td>Keep migrations in git. Take <code>SETTINGS structure_only = 1</code> backups before risky migrations.</td></tr>
+<tr><td>Keeper</td><td>You don't need to back it up for <code>ReplicatedMergeTree</code>. Do back it up (Keeper snapshots) if Keeper holds real state, for example <code>KeeperMap</code> tables, the <code>Replicated</code> database engine, or S3Queue progress.</td></tr>
+<tr><td>Upstream position</td><td>Record Kafka consumer offsets, or the last ingested file or timestamp, when each backup runs. Without it you cannot replay the gap between the backup and the incident.</td></tr>
+<tr><td><code>system.*</code> log tables</td><td>Usually skip them. They hold monitoring data, they are large, and they are excluded by default. If compliance needs them, export them separately.</td></tr>
+</tbody></table></div>
+
+<h2>3. Choosing a method</h2>
+<div class="tw"><table><thead><tr><th>Method</th><th>Strengths</th><th>Weaknesses</th><th>Use when</th></tr></thead><tbody>
+<tr><td><strong>Native <code>BACKUP</code> / <code>RESTORE</code></strong> (22.7+, mature in 23.x+)</td><td>Built in and driven by SQL. <code>ON CLUSTER</code> coordination through Keeper. Incremental backups, partitions, <code>ASYNC</code>. Writes to S3, GCS, Azure, a disk or a file. Server-side copy for tables stored on object storage.</td><td>No built-in scheduler or retention. You build alerting yourself.</td><td><strong>Default choice</strong> for self-hosted clusters.</td></tr>
+<tr><td><strong>Altinity <code>clickhouse-backup</code></strong></td><td>CLI and REST daemon (good as a sidecar). Built-in retention (<code>backups_to_keep_remote</code>), <code>watch</code> scheduler, <code>--rbac</code> and <code>--configs</code>. Many storage backends (S3, GCS, Azure, SFTP, FTP, COS, and more via rclone/restic).</td><td>Must run on the same host as <code>clickhouse-server</code> with access to <code>/var/lib/clickhouse</code>. One process per shard to manage.</td><td>Kubernetes and Altinity-operator setups, or when you need its scheduling and retention.</td></tr>
+<tr><td><code>ALTER TABLE … FREEZE</code> + copy</td><td>Snapshot is instant (hard links) and full control.</td><td>You script everything, including per-disk <code>shadow/</code> paths, upload, <code>UNFREEZE</code> and reattach.</td><td>Only when the tools above don't fit.</td></tr>
+<tr><td>Filesystem or volume snapshots (ZFS, EBS)</td><td>Very fast to restore whole nodes.</td><td>A snapshot of a running server is only crash-consistent. Snapshots live in the same account, so they don't protect against a compromised account.</td><td>As an extra layer for fast node rebuilds, not as your only backup.</td></tr>
+<tr><td>Replay from source (Kafka, raw files in S3)</td><td>Gives fine-grained RPO and doubles as your audit trail.</td><td>Depends on how long the source keeps data. Replaying is slow at large volumes.</td><td>Together with backups, to close the RPO gap.</td></tr>
+<tr><td>ClickHouse Cloud</td><td>Automatic backups, plus export to your own bucket.</td><td>Only available on Cloud.</td><td>If you run on Cloud.</td></tr>
+</tbody></table></div>
+<p>The rest of this document uses the native commands. <code>clickhouse-backup</code> is covered in <a href="#cb">section 10</a>.</p>
+
+<h2>4. Native BACKUP and RESTORE</h2>
+<h3>4.1 Server configuration</h3>
+<p>ClickHouse only writes backups to disks and paths you allow. Put credentials in server config or use instance roles, not SQL literals. Credentials typed into a query end up in <code>system.query_log</code>.</p>
+<pre><code>&lt;!-- config.d/backups.xml --&gt;
+&lt;clickhouse&gt;
+  &lt;backups&gt;
+    &lt;allowed_disk&gt;backups&lt;/allowed_disk&gt;          &lt;!-- for Disk('backups', …) --&gt;
+    &lt;allowed_path&gt;/backups/&lt;/allowed_path&gt;        &lt;!-- for File('…') --&gt;
+    &lt;allow_concurrent_backups&gt;false&lt;/allow_concurrent_backups&gt;
+    &lt;allow_concurrent_restores&gt;false&lt;/allow_concurrent_restores&gt;
+  &lt;/backups&gt;
+
+  &lt;!-- S3 credentials matched by URL prefix; with an IAM/IRSA role, no keys at all --&gt;
+  &lt;s3&gt;
+    &lt;backup_bucket&gt;
+      &lt;endpoint&gt;https://acme-ch-backups.s3.eu-west-1.amazonaws.com/&lt;/endpoint&gt;
+      &lt;use_environment_credentials&gt;true&lt;/use_environment_credentials&gt;
+    &lt;/backup_bucket&gt;
+  &lt;/s3&gt;
+&lt;/clickhouse&gt;</code></pre>
+<p>The tutorial's <a href="../cluster/clickhouse/config.d/cluster.xml"><code>cluster.xml</code></a> defines a local <code>backups</code> disk at <code>/backups/</code>, a Docker volume shared by all four nodes that stands in for S3. Named collections are another way to keep keys out of SQL in recent versions.</p>
+
+<h3>4.2 Syntax</h3>
+<pre><code>BACKUP | RESTORE
+  { TABLE db.t [PARTITION[S] …] [AS db.t2] | DATABASE db [EXCEPT TABLES …] | ALL | TEMPORARY TABLE … | DICTIONARY … }
+  [ON CLUSTER cluster]
+  TO | FROM { Disk('disk', 'path') | File('path') | S3('url'[, key, secret]) | AzureBlobStorage(…) }
+  [SETTINGS …]
+  [ASYNC]</code></pre>
+<p>The name of a backup is its location. If the path ends in <code>.zip</code> or <code>.tar</code> (for example <code>Disk('backups', 'shop.zip')</code>), ClickHouse writes a single archive. Otherwise it writes a directory of files plus a <code>.backup</code> metadata file.</p>
+
+<h3>4.3 Full, incremental, asynchronous</h3>
+<pre><code>-- Sunday: full backup of the database, every shard, in the background
+BACKUP DATABASE shop ON CLUSTER prod
+TO S3('https://acme-ch-backups.s3.eu-west-1.amazonaws.com/shop/full-2026-09-27')
+ASYNC;
+
+-- Mon–Sat: incremental = only parts not already in the base backup
+BACKUP DATABASE shop ON CLUSTER prod
+TO S3('https://acme-ch-backups.s3.eu-west-1.amazonaws.com/shop/incr-2026-10-02')
+SETTINGS base_backup = S3('https://acme-ch-backups.s3.eu-west-1.amazonaws.com/shop/full-2026-09-27')
+ASYNC;
+
+-- Poll until BACKUP_CREATED or BACKUP_FAILED
+SELECT id, name, status, error, formatReadableSize(total_size) AS size, num_files, start_time, end_time
+FROM system.backups ORDER BY start_time DESC LIMIT 5;</code></pre>
+<p>To restore from an incremental backup, name only the incremental. ClickHouse reads any parts it needs from the base backup (and from that backup's base, and so on) automatically. ClickHouse data parts never change once written, so an incremental backup copies only <em>new</em> parts. A merge creates new parts, so after a heavy merge or an <code>OPTIMIZE … FINAL</code> an incremental backup can be almost as big as a full one.</p>
+
+<h3>4.4 On a cluster</h3>
+<ul>
+<li><code>ON CLUSTER</code> makes every node take part, coordinated through Keeper. Replicated data is stored <strong>once per shard</strong>, not once per replica. <span class="tested">Tested on 25.8: a cluster backup restored 50,000 rows per shard, and both replicas of each shard ended up with the same 50,000 rows.</span></li>
+<li>Every node must be able to reach the destination. This is why the lab mounts one shared volume on all nodes.</li>
+<li>If a node goes away during the operation, the whole backup fails after <code>backup_restore_failure_after_host_disconnected_for_seconds</code> (default 3600). Back up when the cluster is healthy.</li>
+<li>Back up the <code>Distributed</code> tables too. They are only DDL, but you need them after a restore. Restore the local tables first.</li>
+<li>A cluster backup is stored by shard. Restore it onto a cluster with the <strong>same number of shards</strong>. To change the topology, restore onto a scratch cluster with the old layout and copy the data across with <code>INSERT … SELECT FROM remote(…)</code>.</li>
+<li>Restore onto the <strong>same or a newer</strong> ClickHouse version. Upgrade the cluster first if needed. Don't plan on restoring onto an older version.</li>
+</ul>
+
+<h3>4.5 Settings worth knowing</h3>
+<div class="tw"><table><thead><tr><th>Setting</th><th>Applies to</th><th>What it does</th></tr></thead><tbody>
+<tr><td><code>base_backup</code></td><td>BACKUP</td><td>Makes this backup an incremental on top of the given backup.</td></tr>
+<tr><td><code>ASYNC</code> (keyword)</td><td>both</td><td>Returns immediately. Track progress in <code>system.backups</code>.</td></tr>
+<tr><td><code>structure_only</code></td><td>both</td><td>DDL only, no data. Good before migrations, or to recreate an empty schema.</td></tr>
+<tr><td><code>compression_method</code>, <code>compression_level</code></td><td>BACKUP</td><td>Compression for archive backups (<code>.zip</code>/<code>.tar</code>).</td></tr>
+<tr><td><code>password</code></td><td>both</td><td>Encrypts <code>.zip</code> archives. For S3, use bucket encryption (SSE-KMS) as well.</td></tr>
+<tr><td><code>s3_storage_class</code></td><td>BACKUP</td><td>For example <code>STANDARD_IA</code> for backups you rarely read. Avoid Glacier classes for anything you might need quickly (see section 6).</td></tr>
+<tr><td><code>use_same_s3_credentials_for_base_backup</code></td><td>BACKUP</td><td>Reuse the destination's credentials for reading the base backup.</td></tr>
+<tr><td><code>allow_non_empty_tables</code></td><td>RESTORE</td><td>Restore into a table that already has rows. <strong>Can duplicate data</strong>.</td></tr>
+<tr><td><code>allow_different_table_def</code></td><td>RESTORE</td><td>Restore into an existing table whose DDL differs from the backup's (for example a different Keeper path).</td></tr>
+<tr><td><code>max_backup_bandwidth</code></td><td>both</td><td>Bytes per second limit for one operation, to protect production I/O.</td></tr>
+<tr><td><code>backup_threads</code> / <code>restore_threads</code></td><td>server</td><td>Thread pool sizes (25.8: <code>backup_threads</code> = 16). Raise them to speed up large restores.</td></tr>
+<tr><td><code>max_backup_bandwidth_for_server</code></td><td>server</td><td>Bandwidth limit for all backups on the node combined.</td></tr>
+<tr><td><code>allow_concurrent_backups</code> / <code>…_restores</code></td><td>server</td><td>Set to <code>false</code> so a scheduled job can't overlap a slow previous run.</td></tr>
+<tr><td><code>shutdown_wait_backups_and_restores</code></td><td>server</td><td>Default 1: a graceful shutdown waits for running backups to finish.</td></tr>
+</tbody></table></div>
+
+<h3>4.6 Tables stored on S3 or other object storage</h3>
+<p>When MergeTree data already lives on object storage, a backup still matters: <code>DROP</code> deletes the objects. When the source disk and the backup destination use the same S3 credentials, ClickHouse uses server-side <code>CopyObject</code> (<code>allow_s3_native_copy</code>). Otherwise it downloads and re-uploads every part, which is much slower and costs egress. If you separate backup credentials for safety, as section 6 recommends, plan for that copy time.</p>
+
+<h2>5. Replicated tables: the Keeper path problem</h2>
+<p>Restoring a table <em>under a new name</em> (<code>RESTORE TABLE t AS t_restored</code>) is the standard way to look at old data without touching production. With <code>ReplicatedMergeTree</code> it fails if the table's Keeper path is hard-coded, because the restored copy tries to register the same replicas at the same path:</p>
+<pre><code>-- table created with ReplicatedMergeTree('/clickhouse/tables/{shard}/shop/events_local', '{replica}')
+RESTORE TABLE shop.events_local AS shop.events_local_restored ON CLUSTER prod FROM Disk('backups', 'shop-full-1');
+-- DB::Exception: Replica /clickhouse/tables/01/shop/events_local/replicas/ch-s1r1 already exists:
+--   While creating table shop.events_local_restored. (REPLICA_ALREADY_EXISTS)</code></pre>
+<p class="tested">Tested on 25.8. The tutorial's <code>shop.events_local</code> (Lesson 05) uses exactly this hard-coded path. Using <code>{database}/{table}</code> macros instead does <em>not</em> help: <code>CREATE … ON CLUSTER</code> expands them when the table is created, so the saved DDL ends up hard-coded anyway.</p>
+<p>Three fixes, best first:</p>
+<ol>
+<li><strong>Use <code>{uuid}</code> in the path for new tables</strong>: <code>ReplicatedMergeTree('/clickhouse/tables/{shard}/{uuid}', '{replica}')</code> (requires the default <code>Atomic</code> database engine). A restored copy gets a new UUID and so a new Keeper path. <span class="tested">Tested on 25.8: restore under a new name succeeded.</span></li>
+<li><strong>Create the target table first with its own path</strong>, then restore into it:
+<pre><code>CREATE TABLE shop.events_local_restored ON CLUSTER prod AS shop.events_local
+ENGINE = ReplicatedMergeTree('/clickhouse/tables/{shard}/shop/events_local_restored', '{replica}')
+PARTITION BY toYYYYMM(event_time) ORDER BY (tenant_id, event_time);
+
+RESTORE TABLE shop.events_local AS shop.events_local_restored ON CLUSTER prod
+FROM Disk('backups', 'shop-full-1')
+SETTINGS allow_non_empty_tables = 1, allow_different_table_def = 1;</code></pre>
+<span class="tested">Tested on 25.8. Without <code>allow_different_table_def</code> it fails with <code>CANNOT_RESTORE_TABLE</code> (“the table has a different definition”).</span></li>
+<li><strong>Restore onto a separate scratch cluster</strong> with its own Keeper. The original path is free there, and production isn't touched.</li>
+</ol>
+<p>Restoring a <em>dropped</em> table under its original name works normally. The <code>DROP … SYNC</code> removed its replicas from Keeper, so the path is free again.</p>
+
+<h2>6. Schedule, retention and where backups live</h2>
+<h3>Chain shape</h3>
+<p>The base you choose for each incremental decides how many backups a restore needs:</p>
+<figure class="fig"><svg xmlns="http://www.w3.org/2000/svg" width="880" height="350" viewBox="0 0 880 350" font-family="Helvetica,Arial,sans-serif" role="img" aria-label="Chained versus differential incremental backups over one week">
+<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#6b7280"/></marker></defs>
+<rect width="100%" height="100%" fill="#ffffff"/>
+<text x="20" y="28" font-size="14" font-weight="bold" fill="#1f2937">Chained: each incremental's base is the previous backup</text>
+<g font-size="13" text-anchor="middle">
+<rect x="20" y="42" width="104" height="56" rx="6" fill="#dbeafe" stroke="#1d4ed8"/><text x="72" y="66" font-weight="bold" fill="#1e3a8a">Sun</text><text x="72" y="84" fill="#1e3a8a">FULL</text>
+<rect x="142" y="42" width="104" height="56" rx="6" fill="#f3f4f6" stroke="#374151"/><text x="194" y="66" font-weight="bold" fill="#1f2937">Mon</text><text x="194" y="84" fill="#4b5563">incr</text>
+<rect x="264" y="42" width="104" height="56" rx="6" fill="#f3f4f6" stroke="#374151"/><text x="316" y="66" font-weight="bold" fill="#1f2937">Tue</text><text x="316" y="84" fill="#4b5563">incr</text>
+<rect x="386" y="42" width="104" height="56" rx="6" fill="#f3f4f6" stroke="#374151"/><text x="438" y="66" font-weight="bold" fill="#1f2937">Wed</text><text x="438" y="84" fill="#4b5563">incr</text>
+<rect x="508" y="42" width="104" height="56" rx="6" fill="#f3f4f6" stroke="#374151"/><text x="560" y="66" font-weight="bold" fill="#1f2937">Thu</text><text x="560" y="84" fill="#4b5563">incr</text>
+<rect x="630" y="42" width="104" height="56" rx="6" fill="#f3f4f6" stroke="#374151"/><text x="682" y="66" font-weight="bold" fill="#1f2937">Fri</text><text x="682" y="84" fill="#4b5563">incr</text>
+<rect x="752" y="42" width="104" height="56" rx="6" fill="#f3f4f6" stroke="#374151"/><text x="804" y="66" font-weight="bold" fill="#1f2937">Sat</text><text x="804" y="84" fill="#4b5563">incr</text>
+</g>
+<g stroke="#6b7280" stroke-width="1.6" marker-end="url(#ar)">
+<line x1="141" y1="70" x2="126" y2="70"/><line x1="263" y1="70" x2="248" y2="70"/><line x1="385" y1="70" x2="370" y2="70"/><line x1="507" y1="70" x2="492" y2="70"/><line x1="629" y1="70" x2="614" y2="70"/><line x1="751" y1="70" x2="736" y2="70"/>
+</g>
+<text x="20" y="124" font-size="13" fill="#374151">Restore Sat = Sun + Mon + … + Sat (7 backups). Small incrementals, but losing any one breaks every later day.</text>
+<text x="20" y="160" font-size="14" font-weight="bold" fill="#1f2937">Differential: every incremental's base is Sunday's full</text>
+<g fill="none" stroke="#6b7280" stroke-width="1.6" marker-end="url(#ar)">
+<path d="M194,255 Q133,229 76,253"/><path d="M316,255 Q196,203 80,253"/><path d="M438,255 Q259,177 84,253"/><path d="M560,255 Q322,151 88,253"/><path d="M682,255 Q385,125 92,253"/><path d="M804,255 Q448,99 96,253"/>
+</g>
+<g font-size="13" text-anchor="middle">
+<rect x="20" y="255" width="104" height="56" rx="6" fill="#dbeafe" stroke="#1d4ed8"/><text x="72" y="279" font-weight="bold" fill="#1e3a8a">Sun</text><text x="72" y="297" fill="#1e3a8a">FULL</text>
+<rect x="142" y="255" width="104" height="56" rx="6" fill="#f3f4f6" stroke="#374151"/><text x="194" y="279" font-weight="bold" fill="#1f2937">Mon</text><text x="194" y="297" fill="#4b5563">incr</text>
+<rect x="264" y="255" width="104" height="56" rx="6" fill="#f3f4f6" stroke="#374151"/><text x="316" y="279" font-weight="bold" fill="#1f2937">Tue</text><text x="316" y="297" fill="#4b5563">incr</text>
+<rect x="386" y="255" width="104" height="56" rx="6" fill="#f3f4f6" stroke="#374151"/><text x="438" y="279" font-weight="bold" fill="#1f2937">Wed</text><text x="438" y="297" fill="#4b5563">incr</text>
+<rect x="508" y="255" width="104" height="56" rx="6" fill="#f3f4f6" stroke="#374151"/><text x="560" y="279" font-weight="bold" fill="#1f2937">Thu</text><text x="560" y="297" fill="#4b5563">incr</text>
+<rect x="630" y="255" width="104" height="56" rx="6" fill="#f3f4f6" stroke="#374151"/><text x="682" y="279" font-weight="bold" fill="#1f2937">Fri</text><text x="682" y="297" fill="#4b5563">incr</text>
+<rect x="752" y="255" width="104" height="56" rx="6" fill="#f3f4f6" stroke="#374151"/><text x="804" y="279" font-weight="bold" fill="#1f2937">Sat</text><text x="804" y="297" fill="#4b5563">incr</text>
+</g>
+<text x="20" y="337" font-size="13" fill="#374151">Restore Sat = Sun + Sat (2 backups). Incrementals grow during the week; Sunday must outlive all of them.</text>
+</svg></figure>
+<p>For most teams the <strong>differential</strong> shape (base = latest full) is the better trade-off: restores are simple and fast, and one damaged incremental only costs you that day. Use chained incrementals for hourly backups between daily ones if you need a tighter RPO, and keep each chain short, ending at the next full.</p>
+
+<h3>A policy that works</h3>
+<div class="tw"><table><thead><tr><th>What</th><th>Recommendation</th></tr></thead><tbody>
+<tr><td>Full</td><td>Weekly. Daily if the data is small enough or your RTO is tight.</td></tr>
+<tr><td>Incremental</td><td>Daily against the latest full. Hourly if your RPO needs it and you can't replay from upstream.</td></tr>
+<tr><td>Before risky changes</td><td>An ad-hoc backup (or <code>structure_only</code>) before migrations, big <code>ALTER … DELETE</code> jobs and upgrades.</td></tr>
+<tr><td>Location</td><td>Object storage in a <strong>separate cloud account</strong> (and region, if you need to survive a region loss), with bucket versioning and <strong>Object Lock</strong> (WORM) in compliance mode for your shortest retention window.</td></tr>
+<tr><td>Access</td><td>ClickHouse's role can write and read backups but <strong>not delete</strong> them. A separate retention job, or lifecycle rules, does the deleting. Application users have no <code>BACKUP</code>/<code>DROP</code>/<code>TRUNCATE</code> grants.</td></tr>
+<tr><td>Retention</td><td>Two tiers: operational (for example 7 dailies, 4–5 weeklies) and, if required, regulatory (monthlies for years, in a separate bucket).</td></tr>
+<tr><td>Encryption</td><td>SSE-KMS on the bucket, TLS in transit. <code>password</code> for <code>.zip</code> archives that leave your cloud.</td></tr>
+</tbody></table></div>
+<div class="warn"><p><strong>Lifecycle rules can break incremental chains.</strong> A rule that deletes or archives objects by age doesn't know that Saturday's incremental still needs Sunday's full. Make retention expire whole chains: delete a full only after its last incremental has expired. Moving objects to Glacier or Deep Archive means a restore has to wait hours for them to be rehydrated, so keep at least the current chain in a class you can read immediately. <code>clickhouse-backup</code>'s <code>backups_to_keep_remote</code> respects chains; plain S3 lifecycle rules don't.</p></div>
+
+<h2>7. Monitoring and alerting</h2>
+<p><code>system.backups</code> shows recent operations on a node and is lost on restart. <code>system.backup_log</code> keeps the history, with one row per status change. Both are per node, so query the node that starts the backups, or use <code>clusterAllReplicas</code>.</p>
+<pre><code>-- Failures in the last day
+SELECT event_time, name, status, error
+FROM system.backup_log
+WHERE status IN ('BACKUP_FAILED', 'RESTORE_FAILED') AND event_time &gt; now() - INTERVAL 1 DAY;
+
+-- Hours since the last successful backup (alert if &gt; 26 for a daily schedule)
+SELECT dateDiff('hour', max(event_time), now()) AS hours_since_last_backup
+FROM system.backup_log
+WHERE status = 'BACKUP_CREATED';
+
+-- Size and duration trend: sudden jumps mean merges, a new big table, or a broken base
+SELECT name, formatReadableSize(total_size) AS size, num_files, dateDiff('second', start_time, end_time) AS secs
+FROM system.backup_log WHERE status = 'BACKUP_CREATED' ORDER BY event_time DESC LIMIT 14;</code></pre>
+<p>Alert on two things: <strong>a failure</strong>, and <strong>no recent success</strong>. A cron job that silently stopped running produces no failures. The <code>go-client/cmd/backup</code> runner exits non-zero on <code>BACKUP_FAILED</code>; <a href="../lessons/08-monitoring/README.md">Lesson 08</a> covers turning that into a Prometheus alert.</p>
+
+<h2>8. Restore playbooks</h2>
+<p>Before any restore: <strong>stop or pause ingestion</strong> into the affected tables (Kafka engine consumers, writer services), and <strong>take a fresh backup of the current state</strong> if you can. A restore done in a hurry can make things worse, and that backup lets you undo it.</p>
+
+<h3>A. A table was dropped or truncated</h3>
+<pre><code>RESTORE TABLE shop.events_local ON CLUSTER prod FROM S3('…/shop/incr-2026-10-02');
+RESTORE TABLE shop.events_all   ON CLUSTER prod FROM S3('…/shop/incr-2026-10-02');
+-- after TRUNCATE the table still exists: DROP it first (… SYNC), or restore under a new name and use playbook B</code></pre>
+<p>Then replay from upstream from the time of the backup (Kafka offsets you recorded, or source files).</p>
+
+<h3>B. Bad <code>DELETE</code>/<code>UPDATE</code> or a bad load hit some partitions</h3>
+<p>Don't restore the whole table. Restore a copy, check it, then swap only the damaged partitions:</p>
+<pre><code>-- 1. restore a copy beside production (see section 5 for replicated tables)
+RESTORE TABLE shop.events_local AS shop.events_local_restored ON CLUSTER prod
+FROM S3('…/shop/incr-2026-10-01') SETTINGS allow_non_empty_tables = 1, allow_different_table_def = 1;
+
+-- 2. compare the copy with production for the affected months
+SELECT toYYYYMM(event_time) AS m, count() FROM shop.events_local_restored GROUP BY m ORDER BY m;
+
+-- 3. atomically replace each damaged partition on every shard
+ALTER TABLE shop.events_local ON CLUSTER prod REPLACE PARTITION 202607 FROM shop.events_local_restored;
+
+-- 4. clean up
+DROP TABLE shop.events_local_restored ON CLUSTER prod SYNC;</code></pre>
+<p class="tested">Tested on 25.8: after an <code>ALTER … DELETE</code> removed a month, <code>REPLACE PARTITION … FROM</code> brought it back on both shards, and the change replicated to both replicas. Both tables must have the same structure, partition key and storage policy.</p>
+
+<h3>C. Restore one partition directly</h3>
+<pre><code>RESTORE TABLE shop.events_local PARTITIONS '202607' ON CLUSTER prod
+FROM S3('…') SETTINGS allow_non_empty_tables = 1;</code></pre>
+<p>This <strong>adds</strong> rows. If any of that partition's rows are still in the table, you get duplicates. Drop the partition first (<code>ALTER TABLE … DROP PARTITION</code>), or use playbook B.</p>
+
+<h3>D. The whole cluster is lost</h3>
+<ol>
+<li>Rebuild the infrastructure and config from IaC/git, with the <strong>same shard count</strong> and the same or a newer ClickHouse version, and a new Keeper ensemble.</li>
+<li>Restore access entities: <code>RESTORE TABLE system.users, TABLE system.roles, … FROM …</code>.</li>
+<li><code>RESTORE DATABASE shop ON CLUSTER prod FROM …</code>. Watch progress in <code>system.backups</code>. Keeper metadata is recreated as tables are created.</li>
+<li>Check row counts and fingerprints (section 9), then reconnect ingestion, replaying from the recorded offsets.</li>
+<li>Record how long it took. That is your real RTO.</li>
+</ol>
+
+<h3>E. Keeper lost its data, but the parts are on disk</h3>
+<p>This doesn't need a backup. Tables go read-only. Restart Keeper with empty state, then run <code>SYSTEM RESTORE REPLICA shop.events_local</code> on each replica. See drill 6 in <a href="../lessons/09-failure-drills/README.md">Lesson 09</a>.</p>
+
+<h3>F. Before a risky migration</h3>
+<pre><code>BACKUP DATABASE shop ON CLUSTER prod TO S3('…/shop/pre-migration-0042') SETTINGS structure_only = 1;  -- DDL only, seconds
+-- for destructive migrations take a real (incremental) data backup instead</code></pre>
+
+<h2>9. Testing restores</h2>
+<p>Both the ClickHouse docs and Altinity make the same point: if you have never restored a backup, there is a good chance the restore won't work when you need it. Automate a drill:</p>
+<ol>
+<li><strong>Monthly</strong>: restore the latest chain onto a <strong>scratch cluster</strong> with the production layout (its own Keeper, so there are no path collisions), from the real bucket, using the real procedure.</li>
+<li><strong>Verify</strong> by comparing the copy with production, up to the backup time:
+<pre><code>SELECT toYYYYMM(event_time) AS m,
+       count()                      AS rows,
+       min(event_time), max(event_time),
+       groupBitXor(cityHash64(*))   AS fingerprint   -- order-independent content hash
+FROM shop.events_all
+WHERE event_time &lt; '2026-10-02 00:00:00'
+GROUP BY m ORDER BY m;</code></pre></li>
+<li><strong>Check that the restored cluster works</strong>: run the application's key queries, log in as an application user (this checks the access entities), and check that the MVs fire on a test insert.</li>
+<li><strong>Record restore time</strong> and data size. Compare against your RTO and watch the trend as data grows.</li>
+<li><strong>Quarterly</strong>: a full disaster-recovery exercise (playbook D), run by someone who didn't write the runbook.</li>
+</ol>
+
+<h2 id="cb">10. clickhouse-backup quick reference</h2>
+<p><a href="https://github.com/Altinity/clickhouse-backup">Altinity's <code>clickhouse-backup</code></a> takes a <code>FREEZE</code> snapshot (hard links), uploads the frozen parts, and restores by copying them to <code>detached/</code> and running <code>ATTACH PART</code>. It must run on the same host as the server (in Kubernetes, as a sidecar).</p>
+<pre><code># /etc/clickhouse-backup/config.yml (excerpt)
+general:
+  remote_storage: s3
+  backups_to_keep_local: 0        # delete local copy after upload (we use create_remote)
+  backups_to_keep_remote: 31      # respects incremental chains
+clickhouse:
+  use_embedded_backup_restore: false   # true = drive native BACKUP/RESTORE instead of FREEZE
+s3:
+  bucket: acme-ch-backups
+  path: shop/{shard}
+
+# commands
+clickhouse-backup create_remote full-2026-09-27
+clickhouse-backup create_remote --diff-from-remote=full-2026-09-27 incr-2026-10-02
+clickhouse-backup create_remote --rbac --configs full-with-access-2026-09-27
+clickhouse-backup list remote
+clickhouse-backup restore_remote --rm incr-2026-10-02          # --rm drops existing tables first
+clickhouse-backup restore_remote --schema incr-2026-10-02      # schema only, then --data
+clickhouse-backup watch --watch-interval=1h --full-interval=24h
+clickhouse-backup server                                       # REST API for orchestration</code></pre>
+<ul>
+<li><strong>On a cluster</strong>, back up <strong>one replica per shard</strong>. Backing up every replica stores the same data twice.</li>
+<li><strong>To restore a shard</strong>, restore one replica fully, create only the schema on the others, and let replication copy the data.</li>
+<li><strong>Never change file permissions</strong> under <code>/var/lib/clickhouse/backup</code> or <code>shadow/</code>. The files are hard links to live data parts, so you would be changing the live table's files.</li>
+<li><strong>Run <code>UNFREEZE</code></strong> (or let the tool clean up). Leftover <code>shadow/</code> directories hold on to the disk space of parts that merges have since replaced.</li>
+</ul>
+
+<h2>11. Common mistakes</h2>
+<div class="tw"><table><thead><tr><th>Mistake</th><th>Consequence</th><th>Fix</th></tr></thead><tbody>
+<tr><td>Relying on replication as the backup</td><td>A <code>DROP</code> on one node is a <code>DROP</code> on all of them</td><td>Off-cluster, immutable backups</td></tr>
+<tr><td>Backups in the same account, deletable by the same credentials</td><td>A compromised account destroys the data and the backups together</td><td>Separate account, Object Lock, no delete permission</td></tr>
+<tr><td>Deleting or archiving a full backup that incrementals still need</td><td>Silent break: you only find out at restore time</td><td>Expire whole chains; use the differential shape</td></tr>
+<tr><td>Hard-coded Keeper paths</td><td>Restoring under a new name fails with <code>REPLICA_ALREADY_EXISTS</code></td><td><code>{uuid}</code> paths, or pre-create the target with <code>allow_different_table_def</code></td></tr>
+<tr><td><code>allow_non_empty_tables</code> on data that is still there</td><td>Duplicated rows</td><td>Drop the partition first, or restore aside and use <code>REPLACE PARTITION</code></td></tr>
+<tr><td>Forgetting users, grants and config</td><td>Data restored, but no one can log in and settings are wrong</td><td>Back up the access entities; keep config in git</td></tr>
+<tr><td>Not recording Kafka offsets</td><td>Can't fill the gap between the backup and the incident</td><td>Record offsets with every backup</td></tr>
+<tr><td>Only alerting on failure</td><td>A dead cron job goes unnoticed for weeks</td><td>Also alert on the age of the last good backup</td></tr>
+<tr><td>Credentials in SQL</td><td>Keys show up in <code>query_log</code></td><td>Instance roles, <code>&lt;s3&gt;</code> endpoint config, or named collections</td></tr>
+<tr><td>Never testing a restore</td><td>RTO unknown, and the procedure may not work</td><td>Monthly automated drill (section 9)</td></tr>
+</tbody></table></div>
+
+<h2>12. Try it in this tutorial</h2>
+<pre><code>cd cluster &amp;&amp; docker compose up -d --wait
+alias ch1='docker compose exec ch-s1r1 clickhouse-client --password learn'
+
+ch1 -q "BACKUP DATABASE shop ON CLUSTER prod TO Disk('backups', 'shop-full-1')"
+ch1 -q "BACKUP TABLE system.users, TABLE system.roles TO Disk('backups', 'access-1')"
+ch1 -q "SELECT name, status, formatReadableSize(total_size) FROM system.backups ORDER BY start_time DESC"
+docker compose exec ch-s1r1 ls /backups/shop-full-1</code></pre>
+<p>Then go through <a href="../lessons/07-backup-restore/README.md">Lesson 07</a>. To practise playbook B, delete a month with <code>ALTER TABLE shop.events_local ON CLUSTER prod DELETE WHERE toYYYYMM(event_time) = 202607</code>, restore the copy as shown in section 5 (option 2), and swap the partition back.</p>
+
+<h2 id="sources">Sources</h2>
+<ul>
+<li>ClickHouse docs: <a href="https://clickhouse.com/docs/operations/backup">Backup and restore</a>, <a href="https://clickhouse.com/docs/concepts/features/backup-restore/overview">overview and settings</a>, <a href="https://clickhouse.com/docs/concepts/features/backup-restore/s3-endpoint">BACKUP/RESTORE to S3</a>, <a href="https://clickhouse.com/docs/operations/backup/disk">to a disk</a>, <a href="https://clickhouse.com/docs/operations/backup/alternative_methods">alternative methods</a></li>
+<li>Altinity: <a href="https://altinity.com/blog/introduction-to-clickhouse-backups-and-clickhouse-backup">Introduction to ClickHouse backups and clickhouse-backup</a>, <a href="https://kb.altinity.com/altinity-kb-setup-and-maintenance/clickhouse-backup/">Knowledge Base: clickhouse-backup</a>, <a href="https://altinity.com/blog/a-new-way-to-restore-clickhouse-after-zookeeper-metadata-is-lost">Restoring after ZooKeeper metadata is lost</a></li>
+<li><a href="https://github.com/Altinity/clickhouse-backup">Altinity/clickhouse-backup</a> (README and examples)</li>
+<li>ClickHouse PRs on S3 native copy for backups: <a href="https://github.com/ClickHouse/ClickHouse/pull/77401">#77401</a>, <a href="https://github.com/ClickHouse/ClickHouse/pull/56744">#56744</a></li>
+<li>QueryPlane: <a href="https://queryplane.com/blog/clickhouse-backup-and-restore-in-practice/">ClickHouse backup and restore in practice</a></li>
+<li>OneUptime: <a href="https://oneuptime.com/blog/post/2026-03-31-clickhouse-backup-recovery-checklist/view">ClickHouse backup and recovery checklist</a></li>
+</ul>
+</main>

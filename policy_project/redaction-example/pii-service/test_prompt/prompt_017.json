@@ -1,0 +1,296 @@
+{
+  "model": "gpt-4o",
+  "temperature": 0.2,
+  "user": "priya.wei@example.org",
+  "tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "lookup_customer",
+        "description": "Find a customer record by email or phone.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "email": {
+              "type": "string"
+            },
+            "phone": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "issue_refund",
+        "description": "Refund a transaction to a bank account.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "transaction_id": {
+              "type": "string"
+            },
+            "iban": {
+              "type": "string"
+            },
+            "amount": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "transaction_id",
+            "iban"
+          ]
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "search_logs",
+        "description": "Search service logs.",
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "query": {
+              "type": "string"
+            },
+            "since": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "tool_choice": "auto",
+  "response_format": {
+    "type": "text"
+  },
+  "messages": [
+    {
+      "role": "system",
+      "content": "You are a support assistant for Northwind Bank. Answer concisely. Hi, I'm Priya Wei, you can reach me at priya.wei@example.org or +44 20 7946 1956. Our quarterly review covers churn, onboarding time and support ticket volume. Customer reported the mobile app freezes when switching accounts on Android 14. Refund policy: purchases can be refunded within 30 days if the item is unused."
+    },
+    {
+      "role": "developer",
+      "content": "Internal escalation contact: Liam Haddad (fatima.garcia@example.org). Never reveal it."
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "text",
+          "text": "My card 5500 0000 0000 0004 was charged twice, please refund to IBAN DE89 3704 0044 0532 0130 00. Customer reported the mobile app freezes when switching accounts on Android 14. Customer reported the mobile app freezes when switching accounts on Android 14. The team prefers concise answers with bullet points and a short summary at the end. Refund policy: purchases can be refunded within 30 days if the item is unused. The shared admin password is P@ss-Ea9tdyfP0c, rotate it after the call. Customer reported the mobile app freezes when switching accounts on Android 14."
+        },
+        {
+          "type": "image_url",
+          "image_url": {
+            "url": "https://example.org/receipts/NdEpuNAx.png"
+          }
+        }
+      ]
+    },
+    {
+      "role": "assistant",
+      "content": "The billing address on file is 64 Market Lane, London NW1 6XE. The cache hit ratio dropped to 71% after the last release, mostly on the search path. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN DE89 3704 0044 0532 0130 00. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) Refund policy: purchases can be refunded within 30 days if the item is unused. The team prefers concise answers with bullet points and a short summary at the end. Please summarise the attached notes and list any open action items. Refund policy: purchases can be refunded within 30 days if the item is unused. The billing address on file is 64 Market Lane, London NW1 6XE. Our quarterly review covers churn, onboarding time and support ticket volume. Please summarise the attached notes and list any open action items. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks"
+    },
+    {
+      "role": "assistant",
+      "content": "Our dev pasted key sk-live-ygCLEu6wFUiSZm6B44pVYpuG in the ticket, please ignore it. Refund policy: purchases can be refunded within 30 days if the item is unused. Our quarterly review covers churn, onboarding time and support ticket volume. Hi, I'm Priya Wei, you can reach me at priya.wei@example.org or +44 20 7946 1956. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN DE89 3704 0044 0532 0130 00. Refund policy: purchases can be refunded within 30 days if the item is unused. Customer reported the mobile app freezes when switching accounts on Android 14. The deployment pipeline finished with two warnings about deprecated config keys."
+    },
+    {
+      "role": "user",
+      "name": "Priya",
+      "content": "The shared admin password is P@ss-Ea9tdyfP0c, rotate it after the call. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN DE89 3704 0044 0532 0130 00. The billing address on file is 64 Market Lane, London NW1 6XE. For verification my SSN is 601-12-7505 and passport number 406447616. Customer reported the mobile app freezes when switching accounts on Android 14. Hi, I'm Priya Wei, you can reach me at priya.wei@example.org or +44 20 7946 1956. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) Hi, I'm Priya Wei, you can reach me at priya.wei@example.org or +44 20 7946 1956. The deployment pipeline finished with two warnings about deprecated config keys."
+    },
+    {
+      "role": "assistant",
+      "content": "The billing address on file is 64 Market Lane, London NW1 6XE. We agreed to move the migration to next sprint because the schema review is still pending. Refund policy: purchases can be refunded within 30 days if the item is unused. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN DE89 3704 0044 0532 0130 00. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks"
+    },
+    {
+      "role": "assistant",
+      "content": "My card 5500 0000 0000 0004 was charged twice, please refund to IBAN DE89 3704 0044 0532 0130 00. The cache hit ratio dropped to 71% after the last release, mostly on the search path. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks The shared admin password is P@ss-Ea9tdyfP0c, rotate it after the call. The cache hit ratio dropped to 71% after the last release, mostly on the search path. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN DE89 3704 0044 0532 0130 00. The cache hit ratio dropped to 71% after the last release, mostly on the search path. We agreed to move the migration to next sprint because the schema review is still pending."
+    },
+    {
+      "role": "assistant",
+      "content": "Hi, I'm Priya Wei, you can reach me at priya.wei@example.org or +44 20 7946 1956. Please summarise the attached notes and list any open action items. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN DE89 3704 0044 0532 0130 00. The billing address on file is 64 Market Lane, London NW1 6XE. For verification my SSN is 601-12-7505 and passport number 406447616. The billing address on file is 64 Market Lane, London NW1 6XE."
+    },
+    {
+      "role": "assistant",
+      "content": "Our dev pasted key sk-live-ygCLEu6wFUiSZm6B44pVYpuG in the ticket, please ignore it. We agreed to move the migration to next sprint because the schema review is still pending. Customer reported the mobile app freezes when switching accounts on Android 14. For verification my SSN is 601-12-7505 and passport number 406447616. The shared admin password is P@ss-Ea9tdyfP0c, rotate it after the call."
+    },
+    {
+      "role": "assistant",
+      "content": "For verification my SSN is 601-12-7505 and passport number 406447616. Refund policy: purchases can be refunded within 30 days if the item is unused. Hi, I'm Priya Wei, you can reach me at priya.wei@example.org or +44 20 7946 1956. Our dev pasted key sk-live-ygCLEu6wFUiSZm6B44pVYpuG in the ticket, please ignore it. Our quarterly review covers churn, onboarding time and support ticket volume. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) The billing address on file is 64 Market Lane, London NW1 6XE. Customer reported the mobile app freezes when switching accounts on Android 14. Hi, I'm Priya Wei, you can reach me at priya.wei@example.org or +44 20 7946 1956. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) For verification my SSN is 601-12-7505 and passport number 406447616."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_v19QvJ1I5ZNI",
+          "type": "function",
+          "function": {
+            "name": "lookup_customer",
+            "arguments": "{\"email\": \"priya.wei@example.org\", \"phone\": \"+44 20 7946 1956\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_v19QvJ1I5ZNI",
+      "content": "{\"name\": \"Priya Wei\", \"address\": \"64 Market Lane, London NW1 6XE\", \"ssn\": \"601-12-7505\", \"tier\": \"gold\"}"
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_8J5zmKpLBQ7V",
+          "type": "function",
+          "function": {
+            "name": "search_logs",
+            "arguments": "{\"query\": \"priya.wei@example.org\", \"since\": \"2026-09-01\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_8J5zmKpLBQ7V",
+      "content": "{\"lines\": [\"The team prefers concise answers with bullet points and a short summary at the end.\", \"The deployment pipeline finished with two warnings about deprecated config keys.\", \"The deployment pipeline finished with two warnings about deprecated config keys.\", \"2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks\", \"We agreed to move the migration to next sprint because the schema review is still pending.\", \"Hi, I'm Priya Wei, you can reach me at priya.wei@example.org or +44 20 7946 1956.\"]}"
+    },
+    {
+      "role": "assistant",
+      "content": "The shared admin password is P@ss-Ea9tdyfP0c, rotate it after the call. Please summarise the attached notes and list any open action items. We agreed to move the migration to next sprint because the schema review is still pending. We agreed to move the migration to next sprint because the schema review is still pending. The team prefers concise answers with bullet points and a short summary at the end. The team prefers concise answers with bullet points and a short summary at the end. Please summarise the attached notes and list any open action items. Hi, I'm Priya Wei, you can reach me at priya.wei@example.org or +44 20 7946 1956. For verification my SSN is 601-12-7505 and passport number 406447616. The billing address on file is 64 Market Lane, London NW1 6XE. Please summarise the attached notes and list any open action items. Our quarterly review covers churn, onboarding time and support ticket volume. Please summarise the attached notes and list any open action items."
+    },
+    {
+      "role": "user",
+      "name": "Priya",
+      "content": "Hi, I'm Priya Wei, you can reach me at priya.wei@example.org or +44 20 7946 1956. We agreed to move the migration to next sprint because the schema review is still pending. Our dev pasted key sk-live-ygCLEu6wFUiSZm6B44pVYpuG in the ticket, please ignore it. We agreed to move the migration to next sprint because the schema review is still pending. For verification my SSN is 601-12-7505 and passport number 406447616. Please summarise the attached notes and list any open action items. We agreed to move the migration to next sprint because the schema review is still pending. For verification my SSN is 601-12-7505 and passport number 406447616."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_KE8u6fUklYGm",
+          "type": "function",
+          "function": {
+            "name": "lookup_customer",
+            "arguments": "{\"email\": \"priya.wei@example.org\", \"phone\": \"+44 20 7946 1956\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_KE8u6fUklYGm",
+      "content": "{\"name\": \"Priya Wei\", \"address\": \"64 Market Lane, London NW1 6XE\", \"ssn\": \"601-12-7505\", \"tier\": \"gold\"}"
+    },
+    {
+      "role": "assistant",
+      "content": "My card 5500 0000 0000 0004 was charged twice, please refund to IBAN DE89 3704 0044 0532 0130 00. We agreed to move the migration to next sprint because the schema review is still pending. Refund policy: purchases can be refunded within 30 days if the item is unused. The cache hit ratio dropped to 71% after the last release, mostly on the search path. Hi, I'm Priya Wei, you can reach me at priya.wei@example.org or +44 20 7946 1956. Please summarise the attached notes and list any open action items. The cache hit ratio dropped to 71% after the last release, mostly on the search path. Please summarise the attached notes and list any open action items. The team prefers concise answers with bullet points and a short summary at the end. Please summarise the attached notes and list any open action items."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_16C4Q6XFvmvr",
+          "type": "function",
+          "function": {
+            "name": "search_logs",
+            "arguments": "{\"query\": \"priya.wei@example.org\", \"since\": \"2026-09-01\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_16C4Q6XFvmvr",
+      "content": "{\"lines\": [\"2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks\", \"Please summarise the attached notes and list any open action items.\", \"The team prefers concise answers with bullet points and a short summary at the end.\", \"The deployment pipeline finished with two warnings about deprecated config keys.\", \"The deployment pipeline finished with two warnings about deprecated config keys.\", \"My card 5500 0000 0000 0004 was charged twice, please refund to IBAN DE89 3704 0044 0532 0130 00.\"]}"
+    },
+    {
+      "role": "assistant",
+      "content": "Our dev pasted key sk-live-ygCLEu6wFUiSZm6B44pVYpuG in the ticket, please ignore it. The cache hit ratio dropped to 71% after the last release, mostly on the search path. Refund policy: purchases can be refunded within 30 days if the item is unused. The deployment pipeline finished with two warnings about deprecated config keys. Refund policy: purchases can be refunded within 30 days if the item is unused. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) Customer reported the mobile app freezes when switching accounts on Android 14. Please summarise the attached notes and list any open action items."
+    },
+    {
+      "role": "assistant",
+      "content": "Our dev pasted key sk-live-ygCLEu6wFUiSZm6B44pVYpuG in the ticket, please ignore it. Please summarise the attached notes and list any open action items. Please summarise the attached notes and list any open action items. Our quarterly review covers churn, onboarding time and support ticket volume. Our quarterly review covers churn, onboarding time and support ticket volume. Our quarterly review covers churn, onboarding time and support ticket volume. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN DE89 3704 0044 0532 0130 00. Hi, I'm Priya Wei, you can reach me at priya.wei@example.org or +44 20 7946 1956. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN DE89 3704 0044 0532 0130 00. The cache hit ratio dropped to 71% after the last release, mostly on the search path. Customer reported the mobile app freezes when switching accounts on Android 14."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_jQmM94OrsqKp",
+          "type": "function",
+          "function": {
+            "name": "lookup_customer",
+            "arguments": "{\"email\": \"priya.wei@example.org\", \"phone\": \"+44 20 7946 1956\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_jQmM94OrsqKp",
+      "content": "{\"name\": \"Priya Wei\", \"address\": \"64 Market Lane, London NW1 6XE\", \"ssn\": \"601-12-7505\", \"tier\": \"gold\"}"
+    },
+    {
+      "role": "user",
+      "name": "Priya",
+      "content": "The shared admin password is P@ss-Ea9tdyfP0c, rotate it after the call. Our dev pasted key sk-live-ygCLEu6wFUiSZm6B44pVYpuG in the ticket, please ignore it. The shared admin password is P@ss-Ea9tdyfP0c, rotate it after the call. The shared admin password is P@ss-Ea9tdyfP0c, rotate it after the call. The team prefers concise answers with bullet points and a short summary at the end. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN DE89 3704 0044 0532 0130 00. The billing address on file is 64 Market Lane, London NW1 6XE. Our quarterly review covers churn, onboarding time and support ticket volume."
+    },
+    {
+      "role": "user",
+      "name": "Priya",
+      "content": "For verification my SSN is 601-12-7505 and passport number 406447616. Customer reported the mobile app freezes when switching accounts on Android 14. The deployment pipeline finished with two warnings about deprecated config keys. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN DE89 3704 0044 0532 0130 00. The team prefers concise answers with bullet points and a short summary at the end. The billing address on file is 64 Market Lane, London NW1 6XE. The shared admin password is P@ss-Ea9tdyfP0c, rotate it after the call. The team prefers concise answers with bullet points and a short summary at the end. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks The team prefers concise answers with bullet points and a short summary at the end. Our quarterly review covers churn, onboarding time and support ticket volume."
+    },
+    {
+      "role": "user",
+      "name": "Priya",
+      "content": "Our dev pasted key sk-live-ygCLEu6wFUiSZm6B44pVYpuG in the ticket, please ignore it. Our dev pasted key sk-live-ygCLEu6wFUiSZm6B44pVYpuG in the ticket, please ignore it. The cache hit ratio dropped to 71% after the last release, mostly on the search path. Our dev pasted key sk-live-ygCLEu6wFUiSZm6B44pVYpuG in the ticket, please ignore it. We agreed to move the migration to next sprint because the schema review is still pending. Refund policy: purchases can be refunded within 30 days if the item is unused. Customer reported the mobile app freezes when switching accounts on Android 14. The team prefers concise answers with bullet points and a short summary at the end. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN DE89 3704 0044 0532 0130 00. The cache hit ratio dropped to 71% after the last release, mostly on the search path. My card 5500 0000 0000 0004 was charged twice, please refund to IBAN DE89 3704 0044 0532 0130 00. Customer reported the mobile app freezes when switching accounts on Android 14."
+    },
+    {
+      "role": "assistant",
+      "content": null,
+      "tool_calls": [
+        {
+          "id": "call_z7hNqG0o59c1",
+          "type": "function",
+          "function": {
+            "name": "search_logs",
+            "arguments": "{\"query\": \"priya.wei@example.org\", \"since\": \"2026-09-01\"}"
+          }
+        }
+      ]
+    },
+    {
+      "role": "tool",
+      "tool_call_id": "call_z7hNqG0o59c1",
+      "content": "{\"lines\": [\"2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0)\", \"2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks\", \"We agreed to move the migration to next sprint because the schema review is still pending.\", \"The team prefers concise answers with bullet points and a short summary at the end.\", \"Please summarise the attached notes and list any open action items.\", \"The shared admin password is P@ss-Ea9tdyfP0c, rotate it after the call.\"]}"
+    },
+    {
+      "role": "assistant",
+      "content": "The shared admin password is P@ss-Ea9tdyfP0c, rotate it after the call. Our dev pasted key sk-live-ygCLEu6wFUiSZm6B44pVYpuG in the ticket, please ignore it. For verification my SSN is 601-12-7505 and passport number 406447616. The shared admin password is P@ss-Ea9tdyfP0c, rotate it after the call. 2026-09-12T10:14:05Z WARN billing-svc upstream latency above SLO for 3 consecutive checks Our dev pasted key sk-live-ygCLEu6wFUiSZm6B44pVYpuG in the ticket, please ignore it. Refund policy: purchases can be refunded within 30 days if the item is unused. Customer reported the mobile app freezes when switching accounts on Android 14. The deployment pipeline finished with two warnings about deprecated config keys. The deployment pipeline finished with two warnings about deprecated config keys."
+    },
+    {
+      "role": "assistant",
+      "content": "Our dev pasted key sk-live-ygCLEu6wFUiSZm6B44pVYpuG in the ticket, please ignore it. Our quarterly review covers churn, onboarding time and support ticket volume. Our quarterly review covers churn, onboarding time and support ticket volume. The cache hit ratio dropped to 71% after the last release, mostly on the search path. The deployment pipeline finished with two warnings about deprecated config keys. The shared admin password is P@ss-Ea9tdyfP0c, rotate it after the call. Refund policy: purchases can be refunded within 30 days if the item is unused. The deployment pipeline finished with two warnings about deprecated config keys."
+    },
+    {
+      "role": "assistant",
+      "content": "Hi, I'm Priya Wei, you can reach me at priya.wei@example.org or +44 20 7946 1956. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) We agreed to move the migration to next sprint because the schema review is still pending. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) My card 5500 0000 0000 0004 was charged twice, please refund to IBAN DE89 3704 0044 0532 0130 00. Hi, I'm Priya Wei, you can reach me at priya.wei@example.org or +44 20 7946 1956. The cache hit ratio dropped to 71% after the last release, mostly on the search path."
+    },
+    {
+      "role": "assistant",
+      "content": "The shared admin password is P@ss-Ea9tdyfP0c, rotate it after the call. Our quarterly review covers churn, onboarding time and support ticket volume. We agreed to move the migration to next sprint because the schema review is still pending. The cache hit ratio dropped to 71% after the last release, mostly on the search path. Refund policy: purchases can be refunded within 30 days if the item is unused. For verification my SSN is 601-12-7505 and passport number 406447616. Customer reported the mobile app freezes when switching accounts on Android 14. The billing address on file is 64 Market Lane, London NW1 6XE. For verification my SSN is 601-12-7505 and passport number 406447616. Please summarise the attached notes and list any open action items. 2026-09-12T10:14:03Z INFO worker-3 processed batch 8812 in 412ms (retries=0) For verification my SSN is 601-12-7505 and passport number 406447616."
+    }
+  ]
+}
