@@ -1,0 +1,18 @@
+services:
+  pii-spacy:
+    build: .
+    image: pii-service-spacy
+    environment:
+      HOST: 0.0.0.0
+      PORT: 3002
+      SPACY_MODEL: en_core_web_lg
+      LOG_LEVEL: INFO
+    ports:
+      - "8888:3002"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:3002/health')"]
+      interval: 15s
+      timeout: 5s
+      start_period: 60s  # model load is slow
+      retries: 3
+    restart: unless-stopped
