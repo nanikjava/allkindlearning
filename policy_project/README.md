@@ -6,7 +6,7 @@ signed Open Policy Agent bundle that gateways enforce at runtime.
 
 ## Contents
 
-- `iso42001-product-map.html`, `policy-lifecycle.html`, `policy-data-flow.html`,
+- `iso42001-product-map.html`, `policy-lifecycle.html`,
   `policy-to-code.html`: design notes on the standards mapping (ISO/IEC 42001,
   NIST AI RMF, OWASP LLM Top 10) and the policy authoring-to-code path.
 - `ui-mockups/`: editor and review screen mockups.
