@@ -27,11 +27,13 @@ type Key struct {
 }
 
 type Gateway struct {
-	Keys         map[string]Key // virtual key -> app
-	Policy       *Policy
-	CheckTimeout time.Duration
-	Client       *http.Client
-	Log          *slog.Logger
+	Keys          map[string]Key // virtual key -> app
+	Policy        *Policy
+	PII           *PIIService   // optional NER sidecar; required if the bundle uses its types
+	CheckTimeout  time.Duration // policy evaluation
+	DetectTimeout time.Duration // PII service call
+	Client        *http.Client
+	Log           *slog.Logger
 }
 
 // ServeHTTP handles POST /v1/chat/completions. Teams adopt it by setting
@@ -59,8 +61,18 @@ func (g *Gateway) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 1. Detect sensitive data.
-	findings := Detect(req.Messages)
+	// 1. Detect sensitive data: regex in-process, plus the PII service for
+	//    names, addresses and other types regex cannot find. If the service
+	//    is down the request is blocked (fail closed): sending it on would
+	//    skip statements that rely on those types.
+	dctx, dcancel := context.WithTimeout(r.Context(), g.DetectTimeout)
+	findings, err := DetectAll(dctx, g.PII, req.Messages)
+	dcancel()
+	if err != nil {
+		g.Log.Error("pii detection failed; failing closed", "app", key.App.ID, "err", err)
+		writeErr(w, http.StatusServiceUnavailable, "pii detection unavailable", nil)
+		return
+	}
 
 	// 2. Ask the policy what to do. Both statements in this policy are
 	//    configured to fail closed, so a policy error blocks the request.

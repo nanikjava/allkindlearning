@@ -52,7 +52,7 @@ func newGateway(t *testing.T, upstream string, logs *bytes.Buffer) *Gateway {
 	}
 	ext := Destination{Provider: "openai", Hosting: "external"}
 	return &Gateway{
-		Policy: p, CheckTimeout: 100 * time.Millisecond, Client: http.DefaultClient,
+		Policy: p, CheckTimeout: 100 * time.Millisecond, DetectTimeout: time.Second, Client: http.DefaultClient,
 		Log: slog.New(slog.NewJSONHandler(logs, nil)),
 		Keys: map[string]Key{
 			"gw-sales":    {App: App{ID: "sales-copilot"}, Destination: ext, UpstreamURL: upstream, UpstreamKey: "real"},
@@ -181,5 +181,80 @@ func TestRestore(t *testing.T) {
 	reply := "I've drafted a note to [EMAIL_1]."
 	if Restore(reply, vault) != "I've drafted a note to jane@example.com." {
 		t.Fatalf("restore failed: %s", Restore(reply, vault))
+	}
+}
+
+// fakePIIService answers /detect like pii-service/spacy: it "finds" each
+// listed value wherever it appears and returns UTF-8 byte offsets.
+func fakePIIService(t *testing.T, values map[string]string) *httptest.Server {
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var req struct{ Text string }
+		json.NewDecoder(r.Body).Decode(&req)
+		var fs []map[string]any
+		for v, typ := range values {
+			if i := strings.Index(req.Text, v); i >= 0 {
+				fs = append(fs, map[string]any{"type": typ, "score": 0.9, "byte_start": i, "byte_end": i + len(v)})
+			}
+		}
+		json.NewEncoder(w).Encode(map[string]any{"findings": fs})
+	}))
+}
+
+func TestPIIServiceFindingsAreEnforced(t *testing.T) {
+	var got string
+	up := fakeModel(t, &got)
+	defer up.Close()
+	svc := fakePIIService(t, map[string]string{
+		"P1234567":             "pii.national_id", // passport: regex misses it, the model finds it
+		"jane.doe@example.com": "pii.email",       // also found by regex: must not be counted twice
+	})
+	defer svc.Close()
+	g := newGateway(t, up.URL, &bytes.Buffer{})
+	g.PII = &PIIService{URL: svc.URL, Client: http.DefaultClient}
+
+	send(g, "gw-sales", "Müller's passport is P1234567, email jane.doe@example.com")
+	if strings.Contains(got, "P1234567") || strings.Contains(got, "jane.doe@example.com") {
+		t.Fatalf("service and regex findings must both be redacted: %s", got)
+	}
+	if !strings.Contains(got, "[NATIONAL_ID_1]") || !strings.Contains(got, "[EMAIL_1]") || strings.Contains(got, "[EMAIL_2]") {
+		t.Fatalf("unexpected placeholders: %s", got)
+	}
+	if !strings.Contains(got, "Müller") {
+		t.Fatalf("byte offsets after a non-ASCII character must stay aligned: %s", got)
+	}
+}
+
+func TestPIIServiceDownFailsClosed(t *testing.T) {
+	var got string
+	up := fakeModel(t, &got)
+	defer up.Close()
+	g := newGateway(t, up.URL, &bytes.Buffer{})
+	g.PII = &PIIService{URL: "http://127.0.0.1:1", Client: http.DefaultClient}
+	w := send(g, "gw-sales", prompt)
+	if w.Code != http.StatusServiceUnavailable || got != "" {
+		t.Fatalf("want 503 and nothing sent upstream, got %d and %q", w.Code, got)
+	}
+}
+
+func TestPIIServiceOutOfRangeSpanRejected(t *testing.T) {
+	svc := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, `{"findings":[{"type":"pii.name","byte_start":0,"byte_end":9999}]}`)
+	}))
+	defer svc.Close()
+	s := &PIIService{URL: svc.URL, Client: http.DefaultClient}
+	if _, err := s.Detect(context.Background(), 0, "short"); err == nil {
+		t.Fatal("span past the end of the text must be an error, not a panic later")
+	}
+}
+
+func TestBundleRequirementIsRead(t *testing.T) {
+	if p, _ := LoadBundle(context.Background(), bundlePath, testKey); p.NeedsPIIService {
+		t.Fatal("POL-AI-003 uses regex types only and must not require the PII service")
+	}
+	data := map[string]any{"aiplane": map[string]any{"policies": map[string]any{
+		"POL-AI-900": map[string]any{"statements": map[string]any{
+			"1.1": map[string]any{"needs_pii_service": true}}}}}}
+	if !needsPIIService(data) {
+		t.Fatal("needs_pii_service in bundle data must be detected")
 	}
 }

@@ -14,11 +14,19 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	var pii *PIIService
+	if url := os.Getenv("PII_SERVICE_URL"); url != "" {
+		pii = &PIIService{URL: url, Client: &http.Client{}}
+	} else if policy.NeedsPIIService {
+		log.Fatal("policy bundle detects names/addresses/bank accounts/passwords: set PII_SERVICE_URL to the pii-service sidecar")
+	}
 	g := &Gateway{
-		Policy:       policy,
-		CheckTimeout: 100 * time.Millisecond,
-		Client:       &http.Client{Timeout: 120 * time.Second},
-		Log:          slog.New(slog.NewJSONHandler(os.Stdout, nil)),
+		Policy:        policy,
+		PII:           pii,
+		CheckTimeout:  100 * time.Millisecond,
+		DetectTimeout: 2 * time.Second,
+		Client:        &http.Client{Timeout: 120 * time.Second},
+		Log:           slog.New(slog.NewJSONHandler(os.Stdout, nil)),
 		// In the product these come from the governance database.
 		Keys: map[string]Key{
 			"gw-support-bot": {
