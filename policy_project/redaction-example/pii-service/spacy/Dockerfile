@@ -9,6 +9,7 @@ COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
 COPY *.py ./
+COPY custom_recognizers/ ./custom_recognizers/
 
 ENV PATH="/app/.venv/bin:$PATH" \
     HOST=0.0.0.0 \

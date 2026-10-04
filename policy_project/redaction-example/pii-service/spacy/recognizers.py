@@ -18,7 +18,7 @@ from presidio_analyzer.predefined_recognizers import (
     UsNpiRecognizer,
 )
 
-from au_licence_recognizer import AuDriverLicenceRecognizer
+from custom_recognizers.au_licence_recognizer import AuDriverLicenceRecognizer
 
 
 def api_key_recognizer() -> PatternRecognizer:

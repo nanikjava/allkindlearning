@@ -34,7 +34,7 @@ Environment variables:
 | `config.py`                | `Settings` and `SpacyConfig`: env vars, labels, thresholds         |
 | `detector.py`              | `PresidioDetector`, plus `to_finding` and `drop_overlaps`          |
 | `recognizers.py`           | Recognizers added on top of Presidio's defaults                    |
-| `au_licence_recognizer.py` | Custom Australian driver licence recognizer                        |
+| `custom_recognizers/au_licence_recognizer.py` | Custom Australian driver licence recognizer                        |
 | `redaction.py`             | `redact()`: placeholders and vault; no Presidio dependency         |
 | `load_testing.py`          | Sends many requests at once to `/detect` and reports latency       |
 | `pyproject.toml`           | Dependencies, including the spaCy model wheel                      |
