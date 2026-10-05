@@ -18,35 +18,54 @@ type PIIService struct {
 }
 
 type serviceFinding struct {
-	Type      string  `json:"type"`
+	Type      string  `json:"type"`  // gateway finding type, e.g. "pii.name"
+	Label     string  `json:"label"` // engine's entity type, e.g. "PERSON"
 	Score     float64 `json:"score"`
-	ByteStart int     `json:"byte_start"`
+	Start     int     `json:"start"` // character (rune) offsets
+	End       int     `json:"end"`
+	ByteStart int     `json:"byte_start"` // UTF-8 byte offsets, match Go string indexes
 	ByteEnd   int     `json:"byte_end"`
+}
+
+// RedactResult is the sidecar's POST /redact response: the text with each
+// finding replaced by a placeholder like [NAME_1], plus the findings. The
+// placeholder-to-original vault stays in the sidecar and is not returned.
+type RedactResult struct {
+	Text     string           `json:"text"`
+	Findings []serviceFinding `json:"findings"`
+}
+
+// post sends {"text": text} to the sidecar path and decodes the JSON reply into out.
+func (s *PIIService) post(ctx context.Context, path, text string, out any) error {
+	body, _ := json.Marshal(map[string]string{"text": text})
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
+		strings.TrimRight(s.URL, "/")+path, bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := s.Client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("pii service %s returned %s", path, resp.Status)
+	}
+	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+		return fmt.Errorf("decode pii service %s response: %w", path, err)
+	}
+	return nil
 }
 
 // Detect sends one message's text to the sidecar and returns its findings
 // as gateway findings. IDs are left empty for the caller to assign.
 func (s *PIIService) Detect(ctx context.Context, msg int, text string) ([]Finding, error) {
-	body, _ := json.Marshal(map[string]string{"text": text})
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
-		strings.TrimRight(s.URL, "/")+"/detect", bytes.NewReader(body))
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Content-Type", "application/json")
-	resp, err := s.Client.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("pii service returned %s", resp.Status)
-	}
 	var out struct {
 		Findings []serviceFinding `json:"findings"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
-		return nil, fmt.Errorf("decode pii service response: %w", err)
+	if err := s.post(ctx, "/detect", text, &out); err != nil {
+		return nil, err
 	}
 	var fs []Finding
 	for _, f := range out.Findings {
@@ -57,6 +76,16 @@ func (s *PIIService) Detect(ctx context.Context, msg int, text string) ([]Findin
 		fs = append(fs, Finding{Type: f.Type, Message: msg, Start: f.ByteStart, End: f.ByteEnd})
 	}
 	return fs, nil
+}
+
+// Redact sends text to the sidecar's POST /redact and returns the redacted
+// text and the findings it replaced. Offsets refer to the original text.
+func (s *PIIService) Redact(ctx context.Context, text string) (*RedactResult, error) {
+	var out RedactResult
+	if err := s.post(ctx, "/redact", text, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // DetectAll runs the regex detectors and, if svc is set, the PII service,
