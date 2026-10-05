@@ -8,6 +8,8 @@ Make ShopStream survive the loss of a server: run Keeper, replicate `shop.events
 ## ShopStream in this lesson
 `shop.events` becomes `shop.events_local`, a replicated table, so a crashed node no longer takes the dashboard down. (Background: [the ShopStream dataset](../../data/README.md).)
 
+**Why `_local`?** In Lessons 01–04 there was one server, so `shop.events` held every row. On a cluster, each node has its own copy of the table, and that copy holds only the rows of the node's shard. The `_local` suffix is the usual ClickHouse naming convention for this: the table that stores data on each node. Querying `shop.events_local` returns only the rows on the node you're connected to, not the whole dataset.
+
 ## What you'll learn
 - Run a 3-node ClickHouse Keeper ensemble and a 4-node ClickHouse cluster
 - How `macros` and `ON CLUSTER` DDL work

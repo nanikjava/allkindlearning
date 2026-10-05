@@ -8,6 +8,13 @@ Scale ShopStream past one machine: split events across shards while keeping each
 ## ShopStream in this lesson
 You add `shop.events_all` on top of `events_local`, shard by shop (`tenant_id`), load 5M events through it, and point the Go services at the whole cluster. (Background: [the ShopStream dataset](../../data/README.md).)
 
+**`events_local` vs `events_all`:** `shop.events_all` is a `Distributed` table that stores nothing itself. It forwards queries to `events_local` (from [Lesson 05](../05-replication/README.md)) on every shard and merges the results:
+
+| Table | Engine | Holds data? | A query returns |
+|---|---|---|---|
+| `shop.events_local` | `ReplicatedMergeTree` | yes, one shard's rows on each node | this node's rows |
+| `shop.events_all` | `Distributed` | no | all rows from all shards |
+
 ## What you'll learn
 - The two-table pattern: `events_local` (data) + `events_all` (`Distributed`, routing)
 - How to pick a sharding key
