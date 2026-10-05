@@ -80,6 +80,36 @@ The table stores the same values three ways each. Read the `on_disk` column:
 - `Delta`/`DoubleDelta` for timestamps and counters, `T64` for small-range integers, `ZSTD` as the general compressor.
 
 ## Step 5 — Skip indexes
+
+**What a skip index is.**
+
+- **The problem.** ClickHouse stores rows in *granules* (blocks of 8192 rows). The primary index (from ORDER BY)
+  lets it jump straight to the right granules, but only when you filter on the ORDER BY columns. For this lesson the  `session_id` isn't in ORDER BY, so `WHERE session_id = …` has to read every granule: all 10M rows.
+- **The fix.** A skip index keeps a small summary of each granule, for example "the values in here" as a
+  bloom filter, or the min and max value.
+- **At query time.** ClickHouse checks each granule's summary first. If the summary says "the value can't
+  be in here", the granule is skipped without being read. Only the remaining granules are read.
+- **What it isn't.** It doesn't point to individual rows like a B-tree index in Postgres or MySQL. It can only
+  say "skip this granule" or "maybe, read it".
+
+**Available index types:**
+
+| Type | Summary stored per block | Good for |
+|---|---|---|
+| `minmax` | min and max value | columns that are roughly sorted or clustered (timestamps, IDs that grow) |
+| `set(N)` | up to N distinct values | low-cardinality columns that vary between blocks |
+| `bloom_filter` | probabilistic set membership | `=` / `IN` lookups of rare values (IDs, UUIDs, emails) |
+| `ngrambf_v1` / `tokenbf_v1` | bloom filter of substrings / words | `LIKE`, `hasToken` text search |
+| `text` (full-text; earlier versions called it `inverted` / `full_text`) | inverted index of tokens to granules | full-text search on large text columns (newer, check your version) |
+| `vector_similarity` | approximate nearest-neighbour graph (HNSW) | vector / embedding similarity search (newer, check your version) |
+
+`GRANULARITY 1` means one summary per granule. A higher value summarizes several granules together, which makes
+the index smaller but lets it skip less precisely.
+
+**How it's used.** You don't reference the index in queries. You add it with `ALTER TABLE … ADD INDEX`, and
+ClickHouse uses it automatically whenever a `WHERE` condition matches its column. To check that it's being used,
+compare `read_rows` before and after, or run `EXPLAIN indexes = 1`.
+
 ```bash
 ch --queries-file /lessons/02-schema-design/03_skip_indexes.sql --format PrettyCompact
 ```
@@ -94,6 +124,29 @@ What happens in the script:
 many skip indexes, your ORDER BY is probably wrong.
 
 ## Step 6 — Partitions and TTL
+
+**Partitions.** `PARTITION BY toYYYYMM(event_time)` stores each month's data in separate parts that are never
+merged together. That lets you manage data a month at a time: `DROP`, `DETACH`, `ATTACH`, or `MOVE` a whole
+partition instantly, without rewriting rows. Partitions are a **data management** tool, not a speed tool. Queries
+can skip partitions that don't match the filter, but ORDER BY does most of that work already. Too many partitions
+(e.g. one per day for years, or per user) leaves many small parts and slows everything down. Monthly is the usual
+choice.
+
+**TTL ("time to live").** A rule that says what happens to data once it reaches a given age. ClickHouse applies it
+in the background during merges, so you don't need cron jobs or manual `DELETE` statements. Uses:
+
+| Use | Example |
+|---|---|
+| Delete old rows (retention, privacy rules, cost) | `TTL event_time + INTERVAL 60 DAY DELETE` |
+| Move old data to cheaper disks (hot/cold) | `TTL event_time + INTERVAL 30 DAY TO VOLUME 'cold'` |
+| Roll old detail up into summaries | `TTL event_time + INTERVAL 90 DAY GROUP BY tenant_id, toDate(event_time) SET revenue = sum(revenue)` |
+| Clear one column after a while (e.g. raw IP) | `ip String TTL event_time + INTERVAL 7 DAY` |
+
+**How they work together.** With `ttl_only_drop_parts = 1`, TTL removes whole parts once every row in them has
+expired, instead of rewriting each part to remove the expired rows. Because monthly partitions keep each month in
+its own parts, a whole month expires together, and removing it costs about as much as dropping a partition.
+Expired rows can still appear in queries until a merge runs or you force it with `MATERIALIZE TTL`.
+
 ```bash
 ch --queries-file /lessons/02-schema-design/04_ttl_and_partitions.sql --format PrettyCompact
 ```
