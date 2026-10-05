@@ -1,0 +1,657 @@
+<title>Partitions, Shards and Replicas</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono&display=swap">
+<style>
+/* Layout: single reading column like the other-docs explainers; each concept owns one colour used in every diagram */
+:root{--bg:#f7f8fa;--fg:#1c2330;--muted:#5b6474;--line:#d9dee7;--accent:#1f6f5c;--panel:#ffffff;--code:#eef1f5;
+--part:#a8620a;--part-bg:#fbefdc;--shard:#2f5fa8;--shard-bg:#e3ecf9;--rep:#1f6f5c;--rep-bg:#dcf1ea;--keeper:#7a4fa0;--keeper-bg:#efe6f7;
+--display:"Fraunces",Georgia,serif;--body:"Source Sans 3",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12161d;--fg:#e4e8ef;--muted:#9aa4b4;--line:#2c3440;--accent:#5fc3a6;--panel:#1a2029;--code:#1f2631;
+--part:#e6a54a;--part-bg:#3a2a12;--shard:#7aa7ec;--shard-bg:#1a2a44;--rep:#5fc3a6;--rep-bg:#163a30;--keeper:#c09be3;--keeper-bg:#2e2140;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12161d;--fg:#e4e8ef;--muted:#9aa4b4;--line:#2c3440;--accent:#5fc3a6;--panel:#1a2029;--code:#1f2631;
+--part:#e6a54a;--part-bg:#3a2a12;--shard:#7aa7ec;--shard-bg:#1a2a44;--rep:#5fc3a6;--rep-bg:#163a30;--keeper:#c09be3;--keeper-bg:#2e2140;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font:17px/1.6 var(--body)}
+main{max-width:900px;margin:0 auto;padding-block:40px 80px;padding-inline:20px}
+h1{font-family:var(--display);font-size:2.3rem;line-height:1.15;text-wrap:balance;margin:0 0 .6rem}
+h2{font-family:var(--display);font-size:1.6rem;margin:3rem 0 .8rem;text-wrap:balance;border-top:1px solid var(--line);padding-top:1.6rem}
+h3{font-size:1.15rem;margin:2rem 0 .5rem;color:var(--accent)}
+p,li{max-width:68ch} a{color:var(--accent)}
+code{font-family:var(--mono);font-size:.85em;background:var(--code);padding:.1em .35em;border-radius:4px;overflow-wrap:anywhere}
+.kbd{overflow-wrap:anywhere}
+pre{background:var(--code);padding:14px 16px;border-radius:8px;overflow-x:auto;line-height:1.45;font-size:.88rem} pre code{background:none;padding:0;font-size:inherit}
+.tw{overflow-x:auto;margin:1rem 0} table{border-collapse:collapse;font-size:.92rem;min-width:640px;width:100%}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:.8rem;letter-spacing:.04em;text-transform:uppercase}
+td:first-child{font-weight:600;white-space:nowrap}
+.fig{margin:1.4rem 0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;overflow-x:auto}
+.fig svg{display:block;width:100%;min-width:640px;height:auto}
+.fig figcaption{color:var(--muted);font-size:.88rem;margin-top:8px;max-width:none}
+figure{margin:0}
+.eyebrow{color:var(--muted);font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;margin-bottom:0}
+.note{color:var(--muted);font-size:.92rem}
+.kbd{font-family:var(--mono);font-size:.9em}
+.trio{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin:1.4rem 0}
+.trio div{border:1px solid var(--line);border-top:4px solid var(--c);background:var(--panel);border-radius:8px;padding:14px 16px;min-width:0}
+.trio b{display:block;color:var(--c);font-size:.8rem;letter-spacing:.08em;text-transform:uppercase}
+.trio p{margin:.3rem 0 0;font-size:.95rem}
+.trio .q{font-family:var(--display);font-size:1.15rem;color:var(--fg);margin-top:.2rem}
+.c-part{--c:var(--part)} .c-shard{--c:var(--shard)} .c-rep{--c:var(--rep)}
+.tag{font-weight:600} .tag.p{color:var(--part)} .tag.s{color:var(--shard)} .tag.r{color:var(--rep)}
+.pit li{margin-bottom:.4rem}
+/* SVG styling through tokens so diagrams follow the theme */
+svg text{font-family:var(--body);fill:var(--fg);font-size:13px}
+svg .t-s{font-size:11px;fill:var(--muted)} svg .t-m{font-family:var(--mono);font-size:11px}
+svg .t-h{font-weight:600;font-size:14px}
+svg .box{fill:var(--panel);stroke:var(--line);stroke-width:1.5}
+svg .node{fill:var(--panel);stroke:var(--muted);stroke-width:1.2}
+svg .p{fill:var(--part-bg);stroke:var(--part);stroke-width:1.3} svg .pt{fill:var(--part)}
+svg .s{fill:var(--shard-bg);stroke:var(--shard);stroke-width:1.5} svg .st{fill:var(--shard)}
+svg .r{fill:var(--rep-bg);stroke:var(--rep);stroke-width:1.3} svg .rt{fill:var(--rep)}
+svg .k{fill:var(--keeper-bg);stroke:var(--keeper);stroke-width:1.3} svg .kt{fill:var(--keeper)}
+svg .ln{stroke:var(--muted);stroke-width:1.5;fill:none}
+svg .ln-s{stroke:var(--shard);stroke-width:1.8;fill:none} svg .ln-r{stroke:var(--rep);stroke-width:1.8;fill:none;stroke-dasharray:5 4}
+svg .ln-k{stroke:var(--keeper);stroke-width:1.4;fill:none;stroke-dasharray:3 3} svg .ln-p{stroke:var(--part);stroke-width:1.6;fill:none}
+svg .dim{opacity:.38}
+svg .ah{fill:var(--muted)} svg .ah-s{fill:var(--shard)} svg .ah-r{fill:var(--rep)} svg .ah-k{fill:var(--keeper)} svg .ah-p{fill:var(--part)}
+nav.toc{font-size:.95rem;columns:2;column-gap:2rem;margin:1rem 0 0;padding:0;list-style:none}
+nav.toc a{text-decoration:none} nav.toc li{break-inside:avoid;margin-bottom:.2rem}
+@media (max-width:560px){nav.toc{columns:1}}
+</style>
+<main>
+<p class="eyebrow">ClickHouse · artifacts</p>
+<h1>Partitions, shards and replicas</h1>
+<p>These three words all describe "splitting up" or "copying" a table, so they get mixed up. They work at different
+levels and solve different problems. This page explains each one in depth, shows how they stack on top of each other in
+the tutorial's <span class="kbd">prod</span> cluster (2 shards × 2 replicas + 3 Keepers), and points to the lesson SQL
+where you can watch each one happen.</p>
+
+<div class="trio">
+  <div class="c-part"><b>Partition</b><p class="q">How is data split inside one table on one server?</p><p>By a key such as month. Each partition is a group of folders on disk. Used for data lifecycle: drop, detach, move, TTL.</p></div>
+  <div class="c-shard"><b>Shard</b><p class="q">Which server holds this row?</p><p>Rows are spread across servers by a sharding key. Each shard holds a different slice. Used to scale beyond one machine.</p></div>
+  <div class="c-rep"><b>Replica</b><p class="q">How many copies of this slice exist?</p><p>Each shard is copied to other servers. Every replica holds the same rows. Used for availability and read capacity.</p></div>
+</div>
+
+<nav aria-label="Contents"><ul class="toc">
+<li><a href="#big">1. The big picture</a></li>
+<li><a href="#compare">2. Side by side</a></li>
+<li><a href="#partition">3. Partitions in depth</a></li>
+<li><a href="#sharding">4. Sharding in depth</a></li>
+<li><a href="#replication">5. Replication in depth</a></li>
+<li><a href="#journey">6. One row's journey through all three</a></li>
+<li><a href="#confusions">7. Common confusions</a></li>
+<li><a href="#choose">8. Choosing what you need</a></li>
+<li><a href="#try">9. Try it in this tutorial</a></li>
+<li><a href="#sources">Sources</a></li>
+</ul></nav>
+
+<!-- ===================================================== 1 -->
+<h2 id="big">1. The big picture</h2>
+<p>Read the diagram from the outside in. The cluster is split into <span class="tag s">shards</span>. Each shard is
+stored on two servers that are <span class="tag r">replicas</span> of each other. Inside every server, the table's data
+is split into <span class="tag p">partitions</span> by month. The three Keeper nodes coordinate replication; they hold
+metadata, never table data.</p>
+
+<figure class="fig">
+<svg viewBox="0 0 860 470" role="img" aria-labelledby="f1t">
+<title id="f1t">Cluster prod: two shards, each with two replica servers, each server holding monthly partitions of events_local</title>
+<defs>
+<marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-r"/></marker>
+</defs>
+<rect x="10" y="10" width="840" height="450" rx="12" class="box"/>
+<text x="28" y="36" class="t-h">cluster "prod"</text>
+<text x="28" y="54" class="t-s">shop.events_all (Distributed) is the front door; it routes rows to shop.events_local on each shard</text>
+
+<!-- shard 1 -->
+<rect x="28" y="70" width="395" height="290" rx="10" class="s"/>
+<text x="44" y="94" class="t-h st">Shard 01</text><text x="120" y="94" class="t-s">rows where cityHash64(tenant_id) % 2 = 0</text>
+<!-- shard 2 -->
+<rect x="437" y="70" width="395" height="290" rx="10" class="s"/>
+<text x="453" y="94" class="t-h st">Shard 02</text><text x="529" y="94" class="t-s">rows where cityHash64(tenant_id) % 2 = 1</text>
+
+<!-- servers -->
+<g id="srv">
+<rect x="44" y="108" width="175" height="236" rx="8" class="node"/>
+</g>
+<rect x="232" y="108" width="175" height="236" rx="8" class="node"/>
+<rect x="453" y="108" width="175" height="236" rx="8" class="node"/>
+<rect x="641" y="108" width="175" height="236" rx="8" class="node"/>
+<text x="58" y="130" class="t-h">ch-s1r1</text><text x="58" y="146" class="t-s">replica 1 of shard 01</text>
+<text x="246" y="130" class="t-h">ch-s1r2</text><text x="246" y="146" class="t-s">replica 2 of shard 01</text>
+<text x="467" y="130" class="t-h">ch-s2r1</text><text x="467" y="146" class="t-s">replica 1 of shard 02</text>
+<text x="655" y="130" class="t-h">ch-s2r2</text><text x="655" y="146" class="t-s">replica 2 of shard 02</text>
+
+<!-- partitions per server: same labels in replicas of a shard -->
+<g>
+<rect x="58" y="160" width="147" height="34" rx="5" class="p"/><text x="68" y="181" class="t-m pt">202605</text><text x="132" y="181" class="t-s">tenants A, C</text>
+<rect x="58" y="202" width="147" height="34" rx="5" class="p"/><text x="68" y="223" class="t-m pt">202606</text><text x="132" y="223" class="t-s">tenants A, C</text>
+<rect x="58" y="244" width="147" height="34" rx="5" class="p"/><text x="68" y="265" class="t-m pt">202607</text><text x="132" y="265" class="t-s">tenants A, C</text>
+</g>
+<g>
+<rect x="246" y="160" width="147" height="34" rx="5" class="p"/><text x="256" y="181" class="t-m pt">202605</text><text x="320" y="181" class="t-s">tenants A, C</text>
+<rect x="246" y="202" width="147" height="34" rx="5" class="p"/><text x="256" y="223" class="t-m pt">202606</text><text x="320" y="223" class="t-s">tenants A, C</text>
+<rect x="246" y="244" width="147" height="34" rx="5" class="p"/><text x="256" y="265" class="t-m pt">202607</text><text x="320" y="265" class="t-s">tenants A, C</text>
+</g>
+<g>
+<rect x="467" y="160" width="147" height="34" rx="5" class="p"/><text x="477" y="181" class="t-m pt">202605</text><text x="541" y="181" class="t-s">tenants B, D</text>
+<rect x="467" y="202" width="147" height="34" rx="5" class="p"/><text x="477" y="223" class="t-m pt">202606</text><text x="541" y="223" class="t-s">tenants B, D</text>
+<rect x="467" y="244" width="147" height="34" rx="5" class="p"/><text x="477" y="265" class="t-m pt">202607</text><text x="541" y="265" class="t-s">tenants B, D</text>
+</g>
+<g>
+<rect x="655" y="160" width="147" height="34" rx="5" class="p"/><text x="665" y="181" class="t-m pt">202605</text><text x="729" y="181" class="t-s">tenants B, D</text>
+<rect x="655" y="202" width="147" height="34" rx="5" class="p"/><text x="665" y="223" class="t-m pt">202606</text><text x="729" y="223" class="t-s">tenants B, D</text>
+<rect x="655" y="244" width="147" height="34" rx="5" class="p"/><text x="665" y="265" class="t-m pt">202607</text><text x="729" y="265" class="t-s">tenants B, D</text>
+</g>
+<text x="58" y="300" class="t-s">shop.events_local</text><text x="58" y="316" class="t-s">PARTITION BY</text><text x="58" y="332" class="t-s">toYYYYMM(event_time)</text>
+<text x="467" y="300" class="t-s">shop.events_local</text><text x="467" y="316" class="t-s">PARTITION BY</text><text x="467" y="332" class="t-s">toYYYYMM(event_time)</text>
+
+<!-- replication arrows -->
+<text x="225" y="356" text-anchor="middle" class="t-s rt">◀ replicas: identical copies ▶</text>
+<text x="634" y="356" text-anchor="middle" class="t-s rt">◀ replicas: identical copies ▶</text>
+
+<!-- keeper -->
+<rect x="200" y="384" width="460" height="60" rx="10" class="k"/>
+<text x="216" y="408" class="t-h kt">Keeper ensemble: keeper1, keeper2, keeper3</text>
+<text x="216" y="428" class="t-s">replication log, part lists, insert dedup hashes, ON CLUSTER DDL queue. No table rows.</text>
+<path d="M300 384 L300 362" class="ln-k"/><path d="M560 384 L560 362" class="ln-k"/>
+</svg>
+<figcaption>The tutorial's cluster from <span class="kbd">cluster/docker-compose.yml</span> and <span class="kbd">cluster/clickhouse/config.d/cluster.xml</span>. Replicas inside a shard hold the same partitions with the same rows; the two shards hold different tenants.</figcaption>
+</figure>
+
+<p>Put another way, each concept is a different axis:</p>
+<ul>
+<li><span class="tag p">Partitioning</span> slices <em>within a table on one node</em>, usually by time.</li>
+<li><span class="tag s">Sharding</span> slices <em>across nodes</em>, usually by an entity like tenant or user.</li>
+<li><span class="tag r">Replication</span> doesn't slice anything. It makes <em>copies</em> of each shard.</li>
+</ul>
+<p>Total servers = shards × replicas. Total distinct data = the sum of all shards. Every server holds roughly
+1 / shards of the data, and inside that, it is split into partitions.</p>
+
+<!-- ===================================================== 2 -->
+<h2 id="compare">2. Side by side</h2>
+<div class="tw"><table>
+<thead><tr><th></th><th>Partition</th><th>Shard</th><th>Replica</th></tr></thead>
+<tbody>
+<tr><td>Splits or copies?</td><td>Splits</td><td>Splits</td><td>Copies</td></tr>
+<tr><td>Where</td><td>Inside one table, on one server's disk</td><td>Across servers</td><td>Across servers</td></tr>
+<tr><td>Defined by</td><td><code>PARTITION BY</code> in the table DDL</td><td><code>remote_servers</code> cluster config + the sharding key in <code>Distributed(...)</code></td><td><code>ReplicatedMergeTree(path, replica)</code> + Keeper + <code>&lt;replica&gt;</code> entries</td></tr>
+<tr><td>Typical key</td><td>Time: <code>toYYYYMM(event_time)</code></td><td>Entity: <code>cityHash64(tenant_id)</code></td><td>No key; the whole shard is copied</td></tr>
+<tr><td>Main purpose</td><td>Data lifecycle: drop, detach, move, TTL, backup by month</td><td>Scale writes, storage and query CPU beyond one machine</td><td>Survive a node loss; spread read load</td></tr>
+<tr><td>Speeds up queries?</td><td>Somewhat: pruning skips whole partitions. <code>ORDER BY</code> matters far more</td><td>Yes: each shard scans its slice in parallel</td><td>Only for concurrency (more queries at once), not one query's latency</td></tr>
+<tr><td>Adds write capacity?</td><td>No</td><td>Yes, roughly linear</td><td>No. Every replica does the same write work</td></tr>
+<tr><td>Needs Keeper?</td><td>No</td><td>No (only for <code>ON CLUSTER</code> DDL)</td><td>Yes</td></tr>
+<tr><td>Changing it later</td><td>New table + <code>INSERT SELECT</code></td><td>Hard: adding shards does not move existing rows</td><td>Easy: add a replica and it fetches everything</td></tr>
+<tr><td>Main risk</td><td>Too many partitions: many small parts, slow merges, insert errors</td><td>Hot shard from a skewed key; cross-shard JOINs</td><td>Lag, read-only replicas when Keeper is down</td></tr>
+<tr><td>Tutorial lesson</td><td>02 · <code>04_ttl_and_partitions.sql</code></td><td>06 · <code>01_create_distributed.sql</code></td><td>05 · <code>01_create_replicated.sql</code></td></tr>
+</tbody></table></div>
+
+<!-- ===================================================== 3 -->
+<h2 id="partition">3. Partitions in depth</h2>
+
+<h3>What a partition is</h3>
+<p>Every MergeTree table stores its rows in <strong>parts</strong>: immutable folders, one per insert, which background
+merges combine into bigger parts. A partition is a rule that says which parts may be merged together. Two parts merge
+only if they belong to the same partition. So with <code>PARTITION BY toYYYYMM(event_time)</code>, June rows and July
+rows never end up in the same folder.</p>
+<pre><code>CREATE TABLE shop.ev_lifecycle AS shop.events
+ENGINE = MergeTree
+PARTITION BY toYYYYMM(event_time)      -- one partition per month
+ORDER BY (tenant_id, event_time)       -- sort order inside every part
+SETTINGS ttl_only_drop_parts = 1;</code></pre>
+<p>On disk, a part folder is named after its partition: <span class="kbd">202606_1_8_2</span> means partition
+<span class="kbd">202606</span>, block numbers 1 to 8, merge level 2 (it went through two rounds of merges). A part changed by a mutation gets a fifth number, the mutation version, as in <span class="kbd">202606_1_8_2_11</span>.</p>
+
+<figure class="fig">
+<svg viewBox="0 0 860 336" role="img" aria-labelledby="f2t">
+<title id="f2t">Inserts create parts; merges combine parts only within a partition; a query on July prunes other partitions</title>
+<defs>
+<marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker>
+<marker id="a2p" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="ah-p"/></marker>
+</defs>
+<text x="20" y="26" class="t-h">One server, table shop.ev_lifecycle</text>
+<text x="20" y="44" class="t-s">An INSERT with rows for two months creates one new part in each partition.</text>
+
+<rect x="20" y="62" width="150" height="66" rx="8" class="box"/>
+<text x="34" y="86" class="t-h">INSERT</text><text x="34" y="104" class="t-s">rows from June and July</text>
+<path d="M170 86 L232 86" class="ln" marker-end="url(#a2)"/>
+<path d="M170 108 C200 108 200 196 232 196" class="ln" marker-end="url(#a2)"/>
+
+<!-- partition 202606 -->
+<rect x="236" y="58" width="290" height="96" rx="8" class="p"/>
+<text x="250" y="80" class="t-h pt">partition 202606</text>
+<rect x="250" y="92" width="84" height="44" rx="4" class="box"/><text x="255" y="118" class="t-m">202606_1_4_1</text>
+<rect x="340" y="92" width="84" height="44" rx="4" class="box"/><text x="345" y="118" class="t-m">202606_5_5_0</text>
+<rect x="430" y="92" width="84" height="44" rx="4" class="box"/><text x="435" y="118" class="t-m">202606_6_6_0</text>
+<!-- partition 202607 -->
+<rect x="236" y="168" width="290" height="96" rx="8" class="p"/>
+<text x="250" y="190" class="t-h pt">partition 202607</text>
+<rect x="250" y="202" width="84" height="44" rx="4" class="box"/><text x="255" y="228" class="t-m">202607_7_7_0</text>
+<rect x="340" y="202" width="84" height="44" rx="4" class="box"/><text x="345" y="228" class="t-m">202607_8_8_0</text>
+
+<path d="M526 106 L590 106" class="ln-p" marker-end="url(#a2p)"/>
+<path d="M526 216 L590 216" class="ln-p" marker-end="url(#a2p)"/>
+<text x="540" y="98" class="t-s">merge</text><text x="540" y="208" class="t-s">merge</text>
+<rect x="594" y="84" width="104" height="44" rx="4" class="box"/><text x="602" y="110" class="t-m">202606_1_6_2</text>
+<rect x="594" y="194" width="104" height="44" rx="4" class="box"/><text x="602" y="220" class="t-m">202607_7_8_1</text>
+<text x="594" y="148" class="t-s">never merged with</text><text x="594" y="162" class="t-s">another month</text>
+
+<!-- query pruning -->
+<rect x="716" y="58" width="128" height="206" rx="8" class="box"/>
+<text x="728" y="80" class="t-h">Query</text>
+<text x="728" y="100" class="t-m">WHERE</text><text x="728" y="116" class="t-m">event_time &gt;=</text><text x="728" y="132" class="t-m">'2026-07-01'</text>
+<text x="728" y="160" class="t-s">202606: skipped</text>
+<text x="728" y="176" class="t-s">(min/max says no)</text>
+<text x="728" y="204" class="t-s pt">202607: read</text>
+
+<rect x="20" y="280" width="824" height="44" rx="6" class="box"/>
+<text x="34" y="298" class="t-s">Lifecycle operations act on a whole partition at once and only touch metadata or whole folders:</text>
+<text x="34" y="315" class="t-m pt">DROP PARTITION · DETACH / ATTACH · MOVE PARTITION TO DISK · FREEZE · REPLACE PARTITION</text>
+</svg>
+<figcaption>Part names follow <span class="kbd">partition_minBlock_maxBlock_level</span>. Merges never cross a partition boundary.</figcaption>
+</figure>
+
+<h3>What partitions are good for</h3>
+<ul>
+<li><strong>Cheap deletes of old data.</strong> <code>ALTER TABLE ... DROP PARTITION 202501</code> marks the partition's parts inactive at once, and the files are deleted in the background about 10 minutes later. No rows are rewritten. Compare with <code>ALTER TABLE ... DELETE WHERE</code>, which rewrites every affected part.</li>
+<li><strong>TTL that lines up.</strong> With <code>ttl_only_drop_parts = 1</code>, an expired TTL drops whole parts instead of rewriting them. That works well when parts never mix old and new rows, which monthly partitions guarantee.</li>
+<li><strong>Detach and attach.</strong> Lesson 02 detaches <span class="kbd">202606</span>; the count drops instantly and comes back on attach. Useful to quarantine bad data or move it between tables.</li>
+<li><strong>Tiered storage.</strong> Move old partitions to a cheaper disk or S3 with <code>MOVE PARTITION ... TO DISK</code> or a <code>TTL ... TO VOLUME</code> rule.</li>
+<li><strong>Re-loading one slice.</strong> Load a corrected month into a staging table, then <code>REPLACE PARTITION 202606 FROM staging</code> swaps it atomically.</li>
+<li><strong>Some query pruning.</strong> Each part keeps min/max values of the partition key columns. A query filtering on <code>event_time</code> skips partitions that can't match.</li>
+</ul>
+
+<h3>What partitions are not for</h3>
+<p>Partitioning is not the main tool for query speed. The primary key (<code>ORDER BY</code>) and its sparse index
+already skip granules inside every part, and they work at a much finer grain than months. Lesson 02's
+<code>01_order_by.sql</code> shows the effect of <code>ORDER BY</code>; partitioning by tenant to "make tenant queries
+faster" would do nothing <code>ORDER BY (tenant_id, ...)</code> doesn't already do, while multiplying the number of parts.</p>
+
+<h3>Pitfalls</h3>
+<ul class="pit">
+<li><strong>Too many partitions.</strong> Every insert creates at least one part <em>per partition it touches</em>. Partition by day with years of history, or by a high-cardinality column like <code>user_id</code>, and you get thousands of tiny parts, slow merges and the error <span class="kbd">Too many partitions for single INSERT block</span> (limit <code>max_partitions_per_insert_block</code>, default 100). The docs' guidance: most tables don't need a partition key at all, most of the rest don't need anything finer than a month (by day is common for observability data), and more than about a thousand partitions is too many. Never partition by a client id or name.</li>
+<li><strong>Inserts spanning many months.</strong> Backfills that send years of data in one block produce one part per month. Group backfills by month.</li>
+<li><strong>Expecting partitions to spread load.</strong> All partitions of a table live on the same server. Spreading across servers is sharding.</li>
+</ul>
+
+<!-- ===================================================== 4 -->
+<h2 id="sharding">4. Sharding in depth</h2>
+
+<h3>What a shard is</h3>
+<p>A shard is a server (or a group of replica servers) that holds one slice of the table's rows. Each shard has its own
+ordinary local table, here <code>shop.events_local</code>. Nothing inside a local table knows it is part of something
+bigger. The sharding happens in a separate <strong>Distributed</strong> table, which stores no data of its own. It is a
+router that knows the cluster layout and the sharding key.</p>
+<pre><code>-- Distributed(cluster, database, local_table, sharding_key)
+CREATE TABLE shop.events_all ON CLUSTER prod AS shop.events_local
+ENGINE = Distributed(prod, shop, events_local, cityHash64(tenant_id));</code></pre>
+<p>The cluster layout comes from <code>remote_servers</code> in <span class="kbd">cluster.xml</span>: two
+<code>&lt;shard&gt;</code> blocks, each listing two <code>&lt;replica&gt;</code> hosts.</p>
+
+<h3>The sharding algorithm: weighted modulo</h3>
+<p>ClickHouse does not use consistent hashing, a hash ring or a directory of key ranges. The Distributed engine uses a
+plain <strong>weighted modulo</strong>, described in the
+<a href="https://clickhouse.com/docs/engines/table-engines/special/distributed">Distributed engine docs</a>:</p>
+<ol>
+<li>Evaluate the sharding key expression for the row. It must return an integer. It can be any expression of
+constants and columns, so the hash function is your choice: <code>cityHash64(tenant_id)</code>,
+<code>intHash64(user_id)</code>, <code>rand()</code>, or even a raw integer column.</li>
+<li>Divide by the <strong>sum of all shard weights</strong> and take the remainder.</li>
+<li>Each shard owns a half-open range of remainders, in the order shards appear in <code>remote_servers</code>:
+shard <em>i</em> gets <code>[sum of earlier weights, sum of earlier weights + its weight)</code>. The row goes to the
+shard whose range contains the remainder.</li>
+</ol>
+<p>Each <code>&lt;shard&gt;</code> can set a <code>&lt;weight&gt;</code>; the default is 1. In this tutorial both
+shards have weight 1, so the total is 2: remainder 0 goes to shard 01 and remainder 1 to shard 02. That is just
+<code>cityHash64(tenant_id) % 2</code>.</p>
+
+<figure class="fig">
+<svg viewBox="0 0 860 250" role="img" aria-labelledby="f6t">
+<title id="f6t">Remainder ranges per shard: equal weights 1 and 1, and the docs example with weights 9 and 10</title>
+<text x="20" y="26" class="t-h">Which remainders each shard owns</text>
+
+<text x="20" y="62" class="t-s">This tutorial: weights 1 + 1 = 2</text>
+<text x="20" y="78" class="t-m">key % 2</text>
+<rect x="250" y="48" width="290" height="38" rx="4" class="s"/><text x="395" y="72" text-anchor="middle" class="t-m st">shard 01 · [0, 1)</text>
+<rect x="540" y="48" width="290" height="38" rx="4" class="s" style="fill-opacity:.55"/><text x="685" y="72" text-anchor="middle" class="t-m st">shard 02 · [1, 2)</text>
+
+<text x="20" y="128" class="t-s">Docs example: weights 9 + 10 = 19</text>
+<text x="20" y="144" class="t-m">key % 19</text>
+<rect x="250" y="114" width="275" height="38" rx="4" class="s"/><text x="387" y="138" text-anchor="middle" class="t-m st">shard 1 · [0, 9)</text>
+<rect x="525" y="114" width="305" height="38" rx="4" class="s" style="fill-opacity:.55"/><text x="677" y="138" text-anchor="middle" class="t-m st">shard 2 · [9, 19)</text>
+
+<text x="20" y="194" class="t-s">Add shard 03 with weight 1</text>
+<text x="20" y="210" class="t-m">key % 3</text>
+<rect x="250" y="180" width="193" height="38" rx="4" class="s"/><text x="346" y="204" text-anchor="middle" class="t-m st">01 · [0, 1)</text>
+<rect x="443" y="180" width="194" height="38" rx="4" class="s" style="fill-opacity:.55"/><text x="540" y="204" text-anchor="middle" class="t-m st">02 · [1, 2)</text>
+<rect x="637" y="180" width="193" height="38" rx="4" class="s" style="fill-opacity:.3"/><text x="733" y="204" text-anchor="middle" class="t-m st">03 · [2, 3)</text>
+<text x="20" y="240" class="t-s">The divisor changed from 2 to 3, so about two thirds of keys now map to a different shard. Rows already written do not move.</text>
+</svg>
+<figcaption>The weight decides the share of remainders, and so the share of rows, each shard receives.</figcaption>
+</figure>
+
+<h3>What weighted modulo means in practice</h3>
+<ul>
+<li><strong>The key must spread well.</strong> Modulo of a raw column inherits its patterns (tenant ids that are all even would all land on shard 01), which is why the key is wrapped in a hash such as <code>cityHash64</code>.</li>
+<li><strong>Weights handle uneven hardware.</strong> Give a bigger server a bigger weight and it receives a proportionally bigger share of new rows.</li>
+<li><strong>No automatic rebalancing.</strong> Changing the shard list or a weight changes the divisor, so most keys now map to a different shard. The rows already written stay where they are. Nothing moves data for you. The docs suggest adding a new shard with a heavier weight so it fills up faster, accepting a somewhat uneven layout.</li>
+<li><strong>Old and new rows for one key can split.</strong> After a change, tenant 42's earlier rows may sit on shard 01 while its new rows go to shard 03. Queries through <code>events_all</code> still return correct results because they ask every shard, but <code>optimize_skip_unused_shards</code> computes the shard from the <em>current</em> layout and would skip the shard holding the old rows. Don't use shard pruning across a layout change until the data has been rewritten.</li>
+<li><strong>The rule only applies to writes through the Distributed table.</strong> An ingester that inserts straight into <code>events_local</code> must apply the same formula itself, or shard pruning and per-shard dedup stop being reliable.</li>
+</ul>
+
+<figure class="fig">
+<svg viewBox="0 0 860 380" role="img" aria-labelledby="f3t">
+<title id="f3t">Left: an insert into events_all is split by the sharding key. Right: a query fans out to one replica per shard and partial results are merged</title>
+<defs>
+<marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="ah-s"/></marker>
+<marker id="a3g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker>
+</defs>
+<text x="20" y="26" class="t-h">Writing: rows are split</text>
+<text x="450" y="26" class="t-h">Reading: the query fans out</text>
+<line x1="430" y1="14" x2="430" y2="366" class="ln dim"/>
+
+<!-- write side -->
+<rect x="20" y="44" width="390" height="62" rx="8" class="box"/>
+<text x="34" y="66" class="t-m">INSERT INTO shop.events_all</text>
+<text x="34" y="86" class="t-s">tenants 7, 42, 99, 1203 … (any node can take it)</text>
+<rect x="110" y="126" width="210" height="56" rx="8" class="s"/>
+<text x="124" y="148" class="t-h st">events_all router</text>
+<text x="124" y="167" class="t-m">cityHash64(tenant_id) % 2</text>
+<path d="M215 106 L215 124" class="ln-s" marker-end="url(#a3)"/>
+<path d="M170 182 L110 236" class="ln-s" marker-end="url(#a3)"/>
+<path d="M260 182 L320 236" class="ln-s" marker-end="url(#a3)"/>
+<text x="64" y="212" class="t-s st">remainder 0</text><text x="300" y="212" class="t-s st">remainder 1</text>
+<rect x="20" y="240" width="180" height="106" rx="8" class="s"/>
+<text x="34" y="262" class="t-h st">Shard 01</text>
+<text x="34" y="282" class="t-s">one replica receives it,</text><text x="34" y="298" class="t-s">replication copies it</text>
+<text x="34" y="324" class="t-m">tenants 7, 99</text>
+<rect x="230" y="240" width="180" height="106" rx="8" class="s"/>
+<text x="244" y="262" class="t-h st">Shard 02</text>
+<text x="244" y="282" class="t-s">one replica receives it,</text><text x="244" y="298" class="t-s">replication copies it</text>
+<text x="244" y="324" class="t-m">tenants 42, 1203</text>
+
+<!-- read side -->
+<rect x="450" y="44" width="390" height="62" rx="8" class="box"/>
+<text x="464" y="66" class="t-m">SELECT event_type, count()</text>
+<text x="464" y="86" class="t-m">FROM shop.events_all GROUP BY event_type</text>
+<rect x="540" y="126" width="210" height="56" rx="8" class="box"/>
+<text x="554" y="148" class="t-h">initiator node</text>
+<text x="554" y="167" class="t-s">merges partial aggregates</text>
+<path d="M645 106 L645 124" class="ln" marker-end="url(#a3g)"/>
+<path d="M600 182 L540 236" class="ln-s" marker-end="url(#a3)"/>
+<path d="M690 182 L750 236" class="ln-s" marker-end="url(#a3)"/>
+<rect x="450" y="240" width="180" height="106" rx="8" class="s"/>
+<text x="464" y="262" class="t-h st">Shard 01</text>
+<text x="464" y="282" class="t-s">one replica scans its slice</text>
+<text x="464" y="298" class="t-s">and pre-aggregates</text>
+<text x="464" y="324" class="t-m">view: 1.2M, cart: 80k…</text>
+<rect x="660" y="240" width="180" height="106" rx="8" class="s"/>
+<text x="674" y="262" class="t-h st">Shard 02</text>
+<text x="674" y="282" class="t-s">one replica scans its slice</text>
+<text x="674" y="298" class="t-s">and pre-aggregates</text>
+<text x="674" y="324" class="t-m">view: 1.3M, cart: 85k…</text>
+</svg>
+<figcaption>Inserts are split by the sharding key. Queries run on every shard in parallel (one replica each) and the initiator merges the small partial results. With <span class="kbd">optimize_skip_unused_shards = 1</span> and the key in <span class="kbd">WHERE</span>, only the matching shard is asked.</figcaption>
+</figure>
+
+<h3>The write path</h3>
+<ul>
+<li>You can insert into <code>events_all</code> on any node. It computes the shard for each row and forwards rows.</li>
+<li>By default the forwarding is <strong>asynchronous</strong>: rows are written to a local queue folder and sent in the background. The INSERT returns before the shards have the data. Set <code>distributed_foreground_insert = 1</code> to wait, or check <code>system.distribution_queue</code> for a backlog.</li>
+<li>Many production setups skip the router for writes: the ingester computes the shard itself and inserts directly into <code>events_local</code> on a node of that shard. Fewer hops, bigger blocks, no hidden queue.</li>
+<li>Because <code>&lt;internal_replication&gt;true&lt;/internal_replication&gt;</code> is set, the router sends each row to <em>one</em> replica of the shard and lets ReplicatedMergeTree copy it. <code>false</code> is actually the default. With it, the router writes to every replica itself, and the docs warn that replica consistency is then never checked, so over time replicas drift apart. Always use <code>true</code> with replicated tables.</li>
+</ul>
+
+<h3>The read path</h3>
+<ul>
+<li>The initiating node sends the query to one replica of every shard (chosen by <code>load_balancing</code>). Each runs it on its local table and returns partial aggregates. The initiator merges them.</li>
+<li>Aggregations parallelise almost perfectly. <code>ORDER BY ... LIMIT</code> needs each shard to send its top N.</li>
+<li><strong>Shard pruning.</strong> Lesson 06 queries <code>WHERE tenant_id = 42</code> with <code>optimize_skip_unused_shards = 1</code>, then reads <code>query_log</code> on all hosts to show only one shard ran a sub-query.</li>
+<li><strong>JOINs and IN across shards.</strong> A plain <code>JOIN</code> against another Distributed table runs a sub-query from every shard to every shard. Use <code>GLOBAL JOIN</code>/<code>GLOBAL IN</code> to ship the small side once, or shard both tables on the same key so the join is local.</li>
+</ul>
+
+<h3>Choosing the sharding key</h3>
+<div class="tw"><table>
+<thead><tr><th>Key</th><th>Good</th><th>Bad</th></tr></thead>
+<tbody>
+<tr><td><code>cityHash64(tenant_id)</code></td><td>All of a tenant on one shard: per-tenant queries hit one shard, tenant-level joins stay local</td><td>One huge tenant makes a hot shard</td></tr>
+<tr><td><code>cityHash64(tenant_id, user_id)</code></td><td>Spreads big tenants evenly; per-user data stays together</td><td>Per-tenant queries touch every shard</td></tr>
+<tr><td><code>rand()</code></td><td>Perfectly even</td><td>No pruning, no local joins, retries may land on a different shard (breaks dedup)</td></tr>
+<tr><td><code>toYYYYMM(event_time)</code></td><td>Nothing useful</td><td>All current writes land on one shard. Time belongs in the partition key, not the sharding key</td></tr>
+</tbody></table></div>
+
+<h3>Pitfalls</h3>
+<ul class="pit">
+<li><strong>Resharding is manual.</strong> Adding a third shard to <code>remote_servers</code> only affects new rows (see weighted modulo above). Existing rows stay where they are and the cluster stays unbalanced until you copy data into a new layout (for example, <code>INSERT INTO new_all SELECT * FROM old_all</code>, partition by partition).</li>
+<li><strong>Shard too early.</strong> One ClickHouse server handles billions of rows. Shard when one machine can't hold the data or keep up with inserts or query CPU, not before.</li>
+<li><strong>Uniqueness is per shard.</strong> <code>ReplacingMergeTree</code> and dedup only work within a shard, so rows that must collapse together must share a sharding key.</li>
+</ul>
+
+<!-- ===================================================== 5 -->
+<h2 id="replication">5. Replication in depth</h2>
+
+<h3>What a replica is</h3>
+<p>A replica is another server holding the <em>same</em> data as its shard-mates. In ClickHouse, replication is per
+table: a table is replicated because its engine is <code>ReplicatedMergeTree</code>. Two tables are replicas of each other when
+they register at the same <strong>Keeper path</strong> with different <strong>replica names</strong>.</p>
+<pre><code>ENGINE = ReplicatedMergeTree('/clickhouse/tables/{shard}/shop/events_local', '{replica}')
+--                             ^ same on both replicas of a shard     ^ unique per node</code></pre>
+<p>The <code>{shard}</code> and <code>{replica}</code> macros come from <code>&lt;macros&gt;</code> in
+<span class="kbd">cluster.xml</span>, filled from the <code>SHARD</code> and <code>REPLICA</code> environment variables in
+<span class="kbd">docker-compose.yml</span>. So ch-s1r1 and ch-s1r2 both use <span class="kbd">/clickhouse/tables/01/…</span>
+and become replicas; ch-s2r1 uses <span class="kbd">/02/…</span> and is a separate shard. One DDL statement run
+<code>ON CLUSTER</code> creates the right thing on all four nodes. This is the link between sharding and replication:
+<strong>the Keeper path decides who is a replica of whom</strong>.</p>
+
+<figure class="fig">
+<svg viewBox="0 0 860 340" role="img" aria-labelledby="f4t">
+<title id="f4t">Replication flow: insert lands on replica 1, which writes the part and logs it in Keeper; replica 2 reads the log and fetches the part</title>
+<defs>
+<marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="ah-r"/></marker>
+<marker id="a4k" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="ah-k"/></marker>
+<marker id="a4g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker>
+</defs>
+<text x="20" y="26" class="t-h">Shard 01: one insert, two copies</text>
+
+<rect x="20" y="50" width="150" height="56" rx="8" class="box"/>
+<text x="34" y="74" class="t-h">Client INSERT</text><text x="34" y="92" class="t-s">10 purchase rows</text>
+<path d="M170 78 L218 78" class="ln" marker-end="url(#a4g)"/>
+<text x="176" y="70" class="t-s">①</text>
+
+<rect x="222" y="40" width="200" height="120" rx="8" class="r"/>
+<text x="236" y="64" class="t-h rt">ch-s1r1</text>
+<text x="236" y="84" class="t-s">② writes part to its disk</text>
+<rect x="236" y="96" width="110" height="34" rx="4" class="p"/><text x="244" y="117" class="t-m pt">202607_9_9_0</text>
+<text x="236" y="150" class="t-s">returns OK (default)</text>
+
+<rect x="560" y="40" width="200" height="120" rx="8" class="r"/>
+<text x="574" y="64" class="t-h rt">ch-s1r2</text>
+<text x="574" y="84" class="t-s">⑤ downloads the part</text>
+<rect x="574" y="96" width="110" height="34" rx="4" class="p"/><text x="582" y="117" class="t-m pt">202607_9_9_0</text>
+<text x="574" y="150" class="t-s">from ch-s1r1 over :9009</text>
+
+<path d="M422 112 L556 112" class="ln-r" marker-end="url(#a4)"/>
+<text x="452" y="104" class="t-s rt">⑤ part bytes</text>
+
+<!-- keeper -->
+<rect x="222" y="210" width="538" height="112" rx="8" class="k"/>
+<text x="236" y="234" class="t-h kt">Keeper: /clickhouse/tables/01/shop/events_local</text>
+<text x="236" y="256" class="t-m">/log</text><text x="330" y="256" class="t-m">log-0000000009: GET_PART 202607_9_9_0</text>
+<text x="236" y="274" class="t-m">/blocks</text><text x="330" y="274" class="t-m">202607_&lt;hash of block&gt; (dedup)</text>
+<text x="236" y="292" class="t-m">/replicas</text><text x="330" y="292" class="t-m">ch-s1r1/, ch-s1r2/ (parts, queue, is_active)</text>
+<text x="236" y="310" class="t-s">No rows here: only names of parts, checksums and the to-do list.</text>
+<path d="M300 160 L300 206" class="ln-k" marker-end="url(#a4k)"/>
+<text x="306" y="188" class="t-s kt">③ append log entry + block hash</text>
+<path d="M660 206 L660 164" class="ln-k" marker-end="url(#a4k)"/>
+<text x="652" y="188" text-anchor="end" class="t-s kt">④ sees entry, queues fetch</text>
+</svg>
+<figcaption>Data flows replica-to-replica (port 9009, the interserver HTTP port). Keeper carries only coordination. Merges and mutations travel through the same log, so replicas converge on the same parts.</figcaption>
+</figure>
+
+<h3>How it works</h3>
+<ol>
+<li>An INSERT reaches any replica. That replica writes a new part locally, as a plain MergeTree would.</li>
+<li>It records the part in Keeper: a log entry saying "part X exists" plus a hash of the inserted block.</li>
+<li>Every other replica watches the log, copies the entry into its own queue and downloads the part from a replica that has it.</li>
+<li>Merges are scheduled the same way: one replica decides "merge parts A+B into C" and writes it to the log; the others either perform the same merge or fetch the result.</li>
+<li>There is no leader for writes. Any replica can accept inserts (multi-master).</li>
+</ol>
+
+<h3>Consistency knobs (Lesson 05, <code>03_consistency.sql</code>)</h3>
+<ul>
+<li><strong>Default is asynchronous.</strong> The INSERT returns when <em>one</em> replica has the part. If that node dies before the others fetch it, the insert can be lost.</li>
+<li><strong><code>insert_quorum = 2</code></strong> (or <code>'auto'</code> for a majority) waits until N replicas have the part. Slower, safer.</li>
+<li><strong>Read-your-writes.</strong> Another replica may not have your rows yet. Pin a client to one replica, run <code>SYSTEM SYNC REPLICA</code>, or use <code>select_sequential_consistency = 1</code>. That last option only works with quorum inserts and <code>insert_quorum_parallel = 0</code> (the default is 1).</li>
+<li><strong>Deduplication.</strong> The block hash in <span class="kbd">/blocks</span> means the same block inserted twice is stored once. The lesson inserts the same purchase twice and counts 1 row. This is what makes ingester retries safe. It is on by default (<code>insert_deduplicate = 1</code>) and Keeper remembers the last 10,000 block hashes per table (<code>replicated_deduplication_window</code>).</li>
+</ul>
+
+<h3>What happens when things fail</h3>
+<div class="tw"><table>
+<thead><tr><th>Failure</th><th>Effect</th><th>Recovery</th></tr></thead>
+<tbody>
+<tr><td>One replica down</td><td>Its shard-mate serves reads and writes. Distributed queries skip the dead replica</td><td>On restart it replays its queue and fetches missing parts automatically</td></tr>
+<tr><td>Both replicas of a shard down</td><td>That shard's data is unavailable; queries on <code>events_all</code> fail (or return partial results with <code>skip_unavailable_shards</code>)</td><td>Bring one back</td></tr>
+<tr><td>Keeper loses quorum (2 of 3 down)</td><td>Replicated tables become read-only. SELECTs still work</td><td>Restore Keeper quorum; inserts resume</td></tr>
+<tr><td>Disk lost on one replica</td><td>That replica is empty</td><td>Recreate the table with the same path; it fetches everything from its peer</td></tr>
+</tbody></table></div>
+<p class="note">Lesson 09's failure drills (<span class="kbd">drill.sh</span>) stop replicas and Keeper nodes so you can watch each row of this table happen.</p>
+
+<h3>Pitfalls</h3>
+<ul class="pit">
+<li><strong>Replication is not a backup.</strong> A bad <code>ALTER ... DELETE</code>, <code>DROP PARTITION</code> or <code>TRUNCATE</code> is replicated to every replica within moments. <code>DROP TABLE</code> on its own runs only on the server you send it to (the docs list <code>CREATE</code>, <code>DROP</code>, <code>ATTACH</code>, <code>DETACH</code> and <code>RENAME</code> as not replicated), but with <code>ON CLUSTER</code> it runs everywhere. Lesson 07 covers backups.</li>
+<li><strong>Replicas don't add write capacity.</strong> Every replica stores and merges every part. Two replicas double the disk and the merge CPU for the same data.</li>
+<li><strong>Keeper is critical.</strong> Run 3 (or 5) Keeper nodes on separate hosts with fast disks. Watch <code>is_readonly</code> and <code>absolute_delay</code> in <code>system.replicas</code>.</li>
+<li><strong>Copy-paste Keeper paths.</strong> Two different tables with the same path become each other's replicas and mix data. Include database and table name in the path (or use <code>{uuid}</code>).</li>
+</ul>
+
+<!-- ===================================================== 6 -->
+<h2 id="journey">6. One row's journey through all three</h2>
+<p>Here is where a single ShopStream purchase ends up, step by step. Each decision is made by a different mechanism.</p>
+
+<figure class="fig">
+<svg viewBox="0 0 860 300" role="img" aria-labelledby="f5t">
+<title id="f5t">A purchase row for tenant 42 in July goes through sharding, then replication, then partitioning</title>
+<defs>
+<marker id="a5" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker>
+</defs>
+<rect x="20" y="30" width="170" height="110" rx="8" class="box"/>
+<text x="34" y="54" class="t-h">The row</text>
+<text x="34" y="76" class="t-m">tenant_id   42</text>
+<text x="34" y="94" class="t-m">event_time  2026-07-14</text>
+<text x="34" y="112" class="t-m">event_type  purchase</text>
+<text x="34" y="130" class="t-m">revenue     49.90</text>
+<path d="M190 85 L226 85" class="ln" marker-end="url(#a5)"/>
+
+<rect x="230" y="30" width="190" height="110" rx="8" class="s"/>
+<text x="244" y="54" class="t-h st">1 · Shard</text>
+<text x="244" y="76" class="t-s">Distributed router hashes</text>
+<text x="244" y="92" class="t-m">cityHash64(42) % 2</text>
+<text x="244" y="114" class="t-s">→ picks a shard,</text>
+<text x="244" y="130" class="t-s">say shard 02</text>
+<path d="M420 85 L456 85" class="ln" marker-end="url(#a5)"/>
+
+<rect x="460" y="30" width="180" height="110" rx="8" class="r"/>
+<text x="474" y="54" class="t-h rt">2 · Replica</text>
+<text x="474" y="76" class="t-s">written to ch-s2r1,</text>
+<text x="474" y="92" class="t-s">logged in Keeper path</text>
+<text x="474" y="108" class="t-m">/tables/02/shop/…</text>
+<text x="474" y="130" class="t-s">ch-s2r2 fetches a copy</text>
+<path d="M640 85 L676 85" class="ln" marker-end="url(#a5)"/>
+
+<rect x="680" y="30" width="160" height="110" rx="8" class="p"/>
+<text x="694" y="54" class="t-h pt">3 · Partition</text>
+<text x="694" y="76" class="t-m">toYYYYMM(…)</text>
+<text x="694" y="92" class="t-s">= 202607</text>
+<text x="694" y="114" class="t-s">new part in that</text>
+<text x="694" y="130" class="t-s">partition, both nodes</text>
+
+<rect x="230" y="166" width="610" height="118" rx="8" class="box"/>
+<text x="244" y="190" class="t-h">4 · Inside the part: ORDER BY (tenant_id, event_time)</text>
+<text x="244" y="212" class="t-s">The row is sorted next to tenant 42's other July events. The sparse primary index lets a query for tenant 42</text>
+<text x="244" y="228" class="t-s">read a few granules of 8192 rows instead of the whole part. This is the fine-grained skipping;</text>
+<text x="244" y="244" class="t-s">partition pruning and shard pruning are the coarse layers above it.</text>
+<text x="244" y="270" class="t-m">shard (servers) → replica (one copy) → partition (folders) → primary index (granules)</text>
+</svg>
+<figcaption>A query for tenant 42 in July narrows in the same order: one shard, one replica of it, one partition, a few granules.</figcaption>
+</figure>
+
+<!-- ===================================================== 7 -->
+<h2 id="confusions">7. Common confusions</h2>
+<dl>
+<dt><strong>"Partitions spread data across servers."</strong></dt>
+<dd>No. Partitions are folders on one server. In other databases (PostgreSQL declarative partitioning, Hive, BigQuery) the word also means a local split, but in Kafka "partition" means something closer to a shard. In ClickHouse, cross-server splitting is always called sharding.</dd>
+<dt><strong>"More partitions make queries faster."</strong></dt>
+<dd>Usually the opposite. More partitions means more, smaller parts and more files to open. Speed comes from <code>ORDER BY</code>, skip indexes and projections.</dd>
+<dt><strong>"Replicas split the work of one query."</strong></dt>
+<dd>By default one query uses one replica per shard. Replicas raise how many queries you can run at once. (The parallel replicas feature can split one query across the replicas of a shard. It is a beta feature you turn on with <code>enable_parallel_replicas</code>, and <code>max_parallel_replicas</code> caps how many replicas take part.)</dd>
+<dt><strong>"A shard is a server."</strong></dt>
+<dd>A shard is a slice of data. In this cluster each shard lives on two servers. Without replication a shard happens to be one server.</dd>
+<dt><strong>"The Distributed table stores the data."</strong></dt>
+<dd>It stores nothing except an outgoing insert queue. Drop it and no data is lost; drop <code>events_local</code> and that server's copy of the data is gone. With <code>ON CLUSTER</code>, as the lessons run it, every copy is gone.</dd>
+<dt><strong>"Replication makes backups unnecessary."</strong></dt>
+<dd>Replication copies mistakes as faithfully as data. See Lesson 07.</dd>
+</dl>
+
+<!-- ===================================================== 8 -->
+<h2 id="choose">8. Choosing what you need</h2>
+<p>These are independent decisions. Most tables want a partition key; many deployments want replication; fewer need sharding.</p>
+<div class="tw"><table>
+<thead><tr><th>Situation</th><th>Partition</th><th>Shard</th><th>Replicate</th></tr></thead>
+<tbody>
+<tr><td>Dev laptop, Lesson 01 single node</td><td>By month if you'll expire data</td><td>No</td><td>No</td></tr>
+<tr><td>Production, data fits one server comfortably</td><td>By month</td><td>No (1 shard)</td><td>Yes, 2 replicas + 3 Keepers</td></tr>
+<tr><td>Data or ingest outgrows one server</td><td>By month</td><td>Yes, by an entity key</td><td>Yes, 2 per shard</td></tr>
+<tr><td>Read-heavy dashboards, data fits one server</td><td>By month</td><td>No</td><td>Yes, more replicas for concurrency</td></tr>
+<tr><td>Small lookup / dimension table</td><td>None (<code>tuple()</code> or omit)</td><td>No; replicate to every node so joins stay local</td><td>Yes</td></tr>
+</tbody></table></div>
+<p>Rough order of decisions: pick <code>ORDER BY</code> first (query speed), then <code>PARTITION BY</code> (retention
+granularity), then replication (availability), and shard last, only when one replica set runs out of room.</p>
+
+<!-- ===================================================== 9 -->
+<h2 id="try">9. Try it in this tutorial</h2>
+<p>Each concept has a lesson where you can see it on real data.</p>
+<pre><code># Partitions (single node, Lesson 02 step 6)
+cd single-node &amp;&amp; docker compose up -d
+docker compose exec clickhouse clickhouse-client --password learn \
+  --queries-file /lessons/02-schema-design/04_ttl_and_partitions.sql --format PrettyCompact
+
+# Replication (cluster, Lesson 05)
+cd cluster &amp;&amp; docker compose up -d --wait
+docker compose exec ch-s1r1 clickhouse-client --password learn \
+  --queries-file /lessons/05-replication/01_create_replicated.sql
+# load events on ch-s1r1, then:
+docker compose exec ch-s1r1 clickhouse-client --password learn \
+  --queries-file /lessons/05-replication/02_inspect.sql
+#   shard 01 replicas: same row count; shard 02: 0 rows (nothing routes there yet)
+
+# Sharding (cluster, Lesson 06)
+docker compose exec ch-s1r1 clickhouse-client --password learn \
+  --queries-file /lessons/06-sharding/01_create_distributed.sql
+# load 5M events through events_all, then:
+docker compose exec ch-s1r1 clickhouse-client --password learn \
+  --queries-file /lessons/06-sharding/02_query_distributed.sql</code></pre>
+
+<p>Queries that show all three at once on the cluster:</p>
+<pre><code>-- Rows per host: replicas of a shard match, shards differ
+SELECT hostName() AS host, getMacro('shard') AS shard, count() AS rows
+FROM clusterAllReplicas('prod', shop.events_local)
+GROUP BY host, shard ORDER BY host;
+
+-- Partitions and parts on every host
+SELECT hostName() AS host, partition, count() AS parts, sum(rows) AS rows
+FROM clusterAllReplicas('prod', system.parts)
+WHERE database = 'shop' AND table = 'events_local' AND active
+GROUP BY host, partition ORDER BY host, partition;
+
+-- Replication health
+SELECT hostName() AS host, replica_path, is_readonly, absolute_delay, queue_size, active_replicas
+FROM clusterAllReplicas('prod', system.replicas)
+WHERE table = 'events_local';</code></pre>
+<p class="note">Lessons referenced: 02 schema design (partitions, TTL), 05 replication, 06 sharding, 07 backup and restore, 09 failure drills. Configs: <span class="kbd">cluster/docker-compose.yml</span>, <span class="kbd">cluster/clickhouse/config.d/cluster.xml</span>.</p>
+<h2 id="sources">Sources</h2>
+<p>Checked on 5 October 2026 against the ClickHouse documentation and the server source (setting defaults):</p>
+<ul>
+<li><a href="https://clickhouse.com/docs/engines/table-engines/mergetree-family/custom-partitioning-key">Custom partitioning key</a>: part names, merges within a partition, guidance on how many partitions</li>
+<li><a href="https://clickhouse.com/docs/sql-reference/statements/alter/partition">Manipulating partitions</a>: DROP, DETACH, REPLACE and MOVE PARTITION, and which of them are replicated</li>
+<li><a href="https://clickhouse.com/docs/engines/table-engines/special/distributed">Distributed table engine</a>: weighted-modulo sharding, asynchronous inserts, <code>internal_replication</code></li>
+<li><a href="https://clickhouse.com/docs/engines/table-engines/mergetree-family/replication">Data replication</a>: one-replica acknowledgement, multi-master, read-only without Keeper, which queries are not replicated</li>
+<li><a href="https://github.com/ClickHouse/ClickHouse/blob/master/src/Core/Settings.cpp">Settings.cpp</a> and <a href="https://github.com/ClickHouse/ClickHouse/blob/master/programs/server/config.xml">config.xml</a>: <code>insert_quorum = 'auto'</code> means a majority, the default of 100 for <code>max_partitions_per_insert_block</code>, shard weight 1, port 9009</li>
+</ul>
+</main>
