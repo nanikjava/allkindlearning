@@ -1,0 +1,1002 @@
+<title>Building Apps on ClickHouse</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono&display=swap">
+<style>
+/* Layout: single reading column like the other-docs explainers; write path amber, read path blue, ClickHouse green, ops purple */
+:root{--bg:#f7f8fa;--fg:#1c2330;--muted:#5b6474;--line:#d9dee7;--accent:#1f6f5c;--panel:#ffffff;--code:#eef1f5;
+--wr:#a8620a;--wr-bg:#fbefdc;--rd:#2f5fa8;--rd-bg:#e3ecf9;--ch:#1f6f5c;--ch-bg:#dcf1ea;--ops:#7a4fa0;--ops-bg:#efe6f7;--bad:#b3261e;--bad-bg:#fbe3e1;
+--display:"Fraunces",Georgia,serif;--body:"Source Sans 3",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12161d;--fg:#e4e8ef;--muted:#9aa4b4;--line:#2c3440;--accent:#5fc3a6;--panel:#1a2029;--code:#1f2631;
+--wr:#e6a54a;--wr-bg:#3a2a12;--rd:#7aa7ec;--rd-bg:#1a2a44;--ch:#5fc3a6;--ch-bg:#163a30;--ops:#c09be3;--ops-bg:#2e2140;--bad:#f28b82;--bad-bg:#3d1c1a;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12161d;--fg:#e4e8ef;--muted:#9aa4b4;--line:#2c3440;--accent:#5fc3a6;--panel:#1a2029;--code:#1f2631;
+--wr:#e6a54a;--wr-bg:#3a2a12;--rd:#7aa7ec;--rd-bg:#1a2a44;--ch:#5fc3a6;--ch-bg:#163a30;--ops:#c09be3;--ops-bg:#2e2140;--bad:#f28b82;--bad-bg:#3d1c1a;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font:17px/1.6 var(--body);margin:0}
+main{max-width:900px;margin:0 auto;padding-block:40px 80px;padding-inline:16px}
+h1{font-family:var(--display);font-size:2.3rem;line-height:1.15;text-wrap:balance;margin:0 0 .6rem}
+h2{font-family:var(--display);font-size:1.6rem;margin:3rem 0 .8rem;text-wrap:balance;border-top:1px solid var(--line);padding-top:1.6rem}
+h3{font-size:1.15rem;margin:2rem 0 .5rem;color:var(--accent)}
+p,li{max-width:68ch} a{color:var(--accent)}
+code{font-family:var(--mono);font-size:.85em;background:var(--code);padding:.1em .35em;border-radius:4px;overflow-wrap:anywhere}
+pre{background:var(--code);padding:14px 16px;border-radius:8px;overflow-x:auto;line-height:1.45;font-size:.86rem} pre code{background:none;padding:0;font-size:inherit;overflow-wrap:normal}
+.tw{overflow-x:auto;margin:1rem 0} table{border-collapse:collapse;font-size:.92rem;min-width:640px;width:100%}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:.8rem;letter-spacing:.04em;text-transform:uppercase}
+td:first-child{font-weight:600}
+.fig{margin:1.4rem 0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;overflow-x:auto}
+.fig svg{display:block;width:100%;min-width:640px;height:auto}
+.fig figcaption{color:var(--muted);font-size:.88rem;margin-top:8px;max-width:none}
+figure{margin:0}
+.eyebrow{color:var(--muted);font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;margin-bottom:0}
+.note{color:var(--muted);font-size:.92rem}
+.kbd{font-family:var(--mono);font-size:.9em;overflow-wrap:anywhere}
+/* "The rule" card at the top of each practice */
+.rule{border:1px solid var(--line);border-left:4px solid var(--accent);background:var(--panel);border-radius:8px;padding:12px 16px;margin:1rem 0}
+.rule b{display:block;color:var(--accent);font-size:.78rem;letter-spacing:.08em;text-transform:uppercase}
+.rule p{margin:.25rem 0 0;max-width:none}
+.analogy{border-left:3px dashed var(--ops);padding:2px 14px;margin:1rem 0;color:var(--fg)}
+.analogy::before{content:"Picture it: ";font-weight:600;color:var(--ops)}
+.dodont{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin:1.2rem 0}
+.dodont div{border:1px solid var(--line);border-top:4px solid var(--c);background:var(--panel);border-radius:8px;padding:12px 16px;min-width:0}
+.dodont b{display:block;color:var(--c);font-size:.78rem;letter-spacing:.08em;text-transform:uppercase}
+.dodont ul{margin:.4rem 0 0;padding-left:1.1rem} .dodont li{margin-bottom:.3rem;font-size:.95rem}
+.c-do{--c:var(--ch)} .c-dont{--c:var(--bad)}
+.check li{margin-bottom:.35rem}
+/* SVG styling through tokens so diagrams follow the theme */
+svg text{font-family:var(--body);fill:var(--fg);font-size:13px}
+svg .t-s{font-size:11px;fill:var(--muted)} svg .t-m{font-family:var(--mono);font-size:11px}
+svg .t-h{font-weight:600;font-size:14px}
+svg .box{fill:var(--panel);stroke:var(--line);stroke-width:1.5}
+svg .node{fill:var(--panel);stroke:var(--muted);stroke-width:1.2}
+svg .w{fill:var(--wr-bg);stroke:var(--wr);stroke-width:1.4} svg .wt{fill:var(--wr)}
+svg .r{fill:var(--rd-bg);stroke:var(--rd);stroke-width:1.4} svg .rt{fill:var(--rd)}
+svg .c{fill:var(--ch-bg);stroke:var(--ch);stroke-width:1.4} svg .ct{fill:var(--ch)}
+svg .o{fill:var(--ops-bg);stroke:var(--ops);stroke-width:1.4} svg .ot{fill:var(--ops)}
+svg .x{fill:var(--bad-bg);stroke:var(--bad);stroke-width:1.2} svg .xt{fill:var(--bad)}
+svg .ln{stroke:var(--muted);stroke-width:1.5;fill:none} svg .ln-d{stroke:var(--muted);stroke-width:1.3;fill:none;stroke-dasharray:4 4}
+svg .ln-w{stroke:var(--wr);stroke-width:1.8;fill:none} svg .ln-r{stroke:var(--rd);stroke-width:1.8;fill:none}
+svg .ln-o{stroke:var(--ops);stroke-width:1.4;fill:none;stroke-dasharray:3 3} svg .ln-x{stroke:var(--bad);stroke-width:1.3;fill:none}
+svg .ah{fill:var(--muted)} svg .ah-w{fill:var(--wr)} svg .ah-r{fill:var(--rd)} svg .ah-o{fill:var(--ops)} svg .ah-x{fill:var(--bad)}
+ul.toc{font-size:.95rem;columns:2;column-gap:2rem;margin:1rem 0 0;padding:0;list-style:none}
+ul.toc a{text-decoration:none} ul.toc li{break-inside:avoid;margin-bottom:.2rem}
+@media (max-width:560px){ul.toc{columns:1} h1{font-size:1.9rem}}
+</style>
+<main>
+<p class="eyebrow">ClickHouse · building applications</p>
+<h1>Best practices for building applications on ClickHouse</h1>
+<p>Most ClickHouse advice is written from the server's point of view: engines, merges, codecs. This page is written from
+the <b>application's</b> point of view. Each section is one practice your service code should follow, why it matters,
+and a Go example using <span class="kbd">clickhouse-go/v2</span> (the same driver as the tutorial's
+<span class="kbd">go-client/</span>). Examples use the tutorial's <span class="kbd">shop.events</span> table.</p>
+
+<div class="analogy">ClickHouse is a freight train, not a taxi. It moves enormous loads very fast, but it hates being
+asked to stop for one passenger at a time. Almost every practice below is a way of loading the train in big, planned
+batches and asking it questions it was built to answer.</div>
+
+<nav aria-label="Contents"><ul class="toc">
+<li><a href="#arch">1. Reference architecture</a></li>
+<li><a href="#queries">2. Design the schema from your app's queries</a></li>
+<li><a href="#pool">3. One connection pool per process</a></li>
+<li><a href="#batch">4. Batch writes in the application</a></li>
+<li><a href="#async">5. Use async inserts when you cannot batch</a></li>
+<li><a href="#retry">6. Make retries idempotent</a></li>
+<li><a href="#errors">7. Classify errors and apply backpressure</a></li>
+<li><a href="#append">8. Model changes as appends, not updates</a></li>
+<li><a href="#read">9. Bound every read: params, timeouts, limits</a></li>
+<li><a href="#rollup">10. Serve dashboards from rollups</a></li>
+<li><a href="#tenant">11. Enforce tenant isolation in two layers</a></li>
+<li><a href="#isolate">12. Separate users per workload</a></li>
+<li><a href="#cache">13. Cache and coalesce repeated queries</a></li>
+<li><a href="#page">14. Paginate with keysets, not OFFSET</a></li>
+<li><a href="#migrate">15. Versioned, additive schema migrations</a></li>
+<li><a href="#test">16. Test against a real ClickHouse</a></li>
+<li><a href="#observe">17. Tag queries so you can trace them</a></li>
+<li><a href="#shutdown">18. Health checks and graceful shutdown</a></li>
+<li><a href="#checklist">19. Checklist</a></li>
+<li><a href="#sources">Sources</a></li>
+</ul></nav>
+
+<!-- ===================================================== 1 -->
+<h2 id="arch">1. Reference architecture</h2>
+<p>Split your application into a <span style="color:var(--wr);font-weight:600">write path</span> and a
+<span style="color:var(--rd);font-weight:600">read path</span>, each with its own service, ClickHouse user and limits.
+Raw events land in one table; materialized views keep small rollup tables up to date; the API reads rollups first.</p>
+
+<figure class="fig">
+<svg viewBox="0 0 860 590" role="img" aria-labelledby="f1t">
+<title id="f1t">Reference architecture: producers feed an ingest service that batches inserts into a ClickHouse cluster; an API service with a cache reads rollup tables; observability and migrations sit alongside</title>
+<defs>
+<marker id="a1w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-w"/></marker>
+<marker id="a1r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-r"/></marker>
+<marker id="a1o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-o"/></marker>
+<marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah"/></marker>
+</defs>
+<text x="20" y="22" class="t-h wt">WRITE PATH</text>
+<text x="20" y="384" class="t-h rt">READ PATH</text>
+
+<!-- producers -->
+<rect x="20" y="70" width="150" height="90" rx="8" class="w"/>
+<text x="34" y="96" class="t-h">Producers</text>
+<text x="34" y="116" class="t-s">web / mobile clients</text>
+<text x="34" y="132" class="t-s">backend services</text>
+<text x="34" y="148" class="t-s">devices, logs</text>
+<!-- nats -->
+<rect x="200" y="30" width="180" height="56" rx="8" class="node"/>
+<text x="214" y="52" class="t-h">NATS JetStream</text>
+<text x="214" y="70" class="t-s">stream EVENTS, 3 replicas</text>
+<!-- ingest -->
+<rect x="200" y="110" width="180" height="110" rx="8" class="w"/>
+<text x="214" y="134" class="t-h">Ingest service (Go)</text>
+<text x="214" y="154" class="t-s">fetch 50k msgs or 1 s</text>
+<text x="214" y="170" class="t-s">ack only after INSERT</text>
+<text x="214" y="186" class="t-s">user: ingest_writer</text>
+<text x="214" y="202" class="t-s">backpressure on error 252</text>
+<path d="M170 92 L198 66" class="ln-w" marker-end="url(#a1w)"/>
+<text x="150" y="58" class="t-s">publish</text>
+<path d="M290 88 V108" class="ln-w" marker-end="url(#a1w)"/>
+<text x="296" y="102" class="t-s">pull batches</text>
+
+<!-- cluster -->
+<rect x="420" y="30" width="420" height="330" rx="12" class="box"/>
+<text x="438" y="54" class="t-h ct">ClickHouse cluster</text>
+<text x="600" y="54" class="t-s">native :9440 TLS, every replica listed in the app</text>
+<rect x="438" y="68" width="190" height="96" rx="8" class="c"/>
+<text x="450" y="88" class="t-h">Shard 1</text>
+<rect x="450" y="98" width="78" height="52" rx="6" class="node"/><text x="460" y="128">replica a</text>
+<rect x="538" y="98" width="78" height="52" rx="6" class="node"/><text x="548" y="128">replica b</text>
+<rect x="640" y="68" width="186" height="96" rx="8" class="c"/>
+<text x="652" y="88" class="t-h">Shard 2</text>
+<rect x="652" y="98" width="78" height="52" rx="6" class="node"/><text x="662" y="128">replica a</text>
+<rect x="740" y="98" width="78" height="52" rx="6" class="node"/><text x="750" y="128">replica b</text>
+
+<rect x="438" y="186" width="140" height="56" rx="8" class="w"/>
+<text x="450" y="208" class="t-h">events</text>
+<text x="450" y="226" class="t-s">raw, append-only</text>
+<rect x="602" y="196" width="56" height="36" rx="6" class="node"/>
+<text x="613" y="219" class="t-m">MV</text>
+<rect x="682" y="186" width="144" height="56" rx="8" class="r"/>
+<text x="694" y="208" class="t-h">rollups</text>
+<text x="694" y="226" class="t-s">hourly, per tenant</text>
+<path d="M578 214 H600" class="ln" marker-end="url(#a1)"/>
+<path d="M658 214 H680" class="ln" marker-end="url(#a1)"/>
+<text x="440" y="264" class="t-s">every insert into events also feeds the rollup, so the API rarely scans raw rows</text>
+
+<rect x="438" y="282" width="120" height="58" rx="8" class="o"/><text x="450" y="306" class="t-h">Keeper 1</text><text x="450" y="324" class="t-s">coordination</text>
+<rect x="572" y="282" width="120" height="58" rx="8" class="o"/><text x="584" y="306" class="t-h">Keeper 2</text><text x="584" y="324" class="t-s">no table data</text>
+<rect x="706" y="282" width="120" height="58" rx="8" class="o"/><text x="718" y="306" class="t-h">Keeper 3</text><text x="718" y="324" class="t-s">quorum of 3</text>
+
+<path d="M380 165 H418" class="ln-w" marker-end="url(#a1w)"/>
+<text x="382" y="158" class="t-s">INSERT</text>
+
+<!-- read path -->
+<rect x="20" y="400" width="150" height="70" rx="8" class="r"/>
+<text x="34" y="426" class="t-h">Dashboards</text>
+<text x="34" y="446" class="t-s">API consumers</text>
+<rect x="200" y="400" width="180" height="110" rx="8" class="r"/>
+<text x="214" y="424" class="t-h">API service (Go)</text>
+<text x="214" y="444" class="t-s">tenant from auth, never input</text>
+<text x="214" y="460" class="t-s">bound params + timeouts</text>
+<text x="214" y="476" class="t-s">user: api_reader (readonly)</text>
+<text x="214" y="492" class="t-s">reads rollups first</text>
+<rect x="20" y="500" width="150" height="58" rx="8" class="node"/>
+<text x="34" y="524" class="t-h">Cache</text>
+<text x="34" y="542" class="t-s">Redis or in-process</text>
+<path d="M170 435 H198" class="ln-r" marker-end="url(#a1r)"/>
+<path d="M200 520 L172 528" class="ln-r" marker-end="url(#a1r)"/>
+<path d="M380 430 H520 V362" class="ln-r" marker-end="url(#a1r)"/>
+<text x="392" y="422" class="t-s">SELECT with query_id, log_comment</text>
+
+<!-- ops -->
+<rect x="550" y="400" width="290" height="80" rx="8" class="o"/>
+<text x="564" y="424" class="t-h">Observability</text>
+<text x="564" y="444" class="t-s">system.query_log by log_comment / query_id</text>
+<text x="564" y="460" class="t-s">Prometheus :9363 to Grafana, alerts on parts</text>
+<path d="M700 362 V398" class="ln-o" marker-end="url(#a1o)"/>
+<rect x="550" y="500" width="290" height="70" rx="8" class="o"/>
+<text x="564" y="524" class="t-h">Migrations job (CI)</text>
+<text x="564" y="544" class="t-s">versioned DDL, ON CLUSTER, runs before deploy</text>
+<path d="M840 535 H852 V250 H828" class="ln-o" marker-end="url(#a1o)"/>
+</svg>
+<figcaption>Write and read paths share the cluster but not users, settings profiles or code. NATS JetStream decouples producers from ClickHouse: events wait safely in the stream during spikes or outages, and several ingest pods share one durable consumer.</figcaption>
+</figure>
+
+<div class="tw"><table>
+<thead><tr><th>Component</th><th>Responsibility</th><th>Owns which practices</th></tr></thead>
+<tbody>
+<tr><td>NATS JetStream + ingest service</td><td>Hold events durably, then turn them into large, idempotent inserts</td><td><a href="#batch">4</a>, <a href="#async">5</a>, <a href="#retry">6</a>, <a href="#errors">7</a></td></tr>
+<tr><td>API service</td><td>Answer bounded, tenant-scoped questions quickly</td><td><a href="#read">9</a>, <a href="#tenant">11</a>, <a href="#cache">13</a>, <a href="#page">14</a></td></tr>
+<tr><td>Schema (MVs, rollups)</td><td>Pre-compute what the API asks most often</td><td><a href="#queries">2</a>, <a href="#append">8</a>, <a href="#rollup">10</a></td></tr>
+<tr><td>Platform</td><td>Users, limits, migrations, monitoring</td><td><a href="#isolate">12</a>, <a href="#migrate">15</a>, <a href="#observe">17</a></td></tr>
+</tbody></table></div>
+
+<!-- ===================================================== 2 -->
+<h2 id="queries">2. Design the schema from your app's queries</h2>
+<div class="rule"><b>The rule</b><p>Write down the 5 to 10 queries your app will run most, then pick <code>ORDER BY</code> so the columns every one of them filters on come first.</p></div>
+<p>The sorting key is the only "index" ClickHouse uses to skip data. If every API call filters by tenant and a time
+range, <code>ORDER BY (tenant_id, event_time)</code> lets ClickHouse read a few granules instead of the whole table.
+Lesson 02 measures this: the same query reads orders of magnitude fewer rows with the right key.</p>
+<div class="analogy">The sorting key is the order of books on a library shelf. If the shelf is sorted by author and
+every visitor asks for an author, they walk straight to it. If visitors ask for a publication year, they read every spine.</div>
+<pre><code>CREATE TABLE shop.events
+(
+    event_time  DateTime64(3, 'UTC'),
+    tenant_id   UInt32,
+    user_id     UInt64,
+    event_type  LowCardinality(String),
+    country     LowCardinality(String),
+    url         String,
+    duration_ms UInt32
+)
+ENGINE = MergeTree
+PARTITION BY toYYYYMM(event_time)          -- lifecycle (TTL, drop), not speed
+ORDER BY (tenant_id, event_type, event_time) -- what the app filters on, coarse to fine
+TTL toDateTime(event_time) + INTERVAL 13 MONTH;</code></pre>
+<p><b>Do this now:</b> grep your codebase (or <code>system.query_log</code>) for the <code>WHERE</code> clauses you
+actually send, and check that their leading columns match the table's sorting key.</p>
+<div class="tw"><table>
+<thead><tr><th>Choice</th><th>Gain</th><th>Cost</th></tr></thead>
+<tbody>
+<tr><td>Tenant first in key</td><td>Per-tenant queries are tiny reads</td><td>Cross-tenant "global" queries scan more; serve those from a rollup</td></tr>
+<tr><td>Time first in key</td><td>Great for "last hour across everyone"</td><td>Every tenant-scoped query reads every tenant's rows in the range</td></tr>
+<tr><td>Projection or second table with another key</td><td>Two fast access paths</td><td>Extra storage and insert work</td></tr>
+</tbody></table></div>
+
+<!-- ===================================================== 3 -->
+<h2 id="pool">3. One connection pool per process</h2>
+<div class="rule"><b>The rule</b><p>Create the <code>driver.Conn</code> once at startup, share it everywhere, list every replica, and set dial and read timeouts.</p></div>
+<p><code>clickhouse.Open</code> returns a pool, not a single connection. Opening one per request wastes TCP and TLS
+handshakes and can exhaust <code>max_connections</code> on the server. Listing all replicas lets the driver fail over
+when one node is down.</p>
+<pre><code>// One pool per process. Pass it to repositories; never open per request.
+func NewClickHouse(ctx context.Context, cfg Config) (driver.Conn, error) {
+	conn, err := clickhouse.Open(&amp;clickhouse.Options{
+		Addr:             cfg.Addrs, // every replica, e.g. ch-1a:9440, ch-1b:9440, ch-2a:9440, ch-2b:9440
+		Auth:             clickhouse.Auth{Database: "shop", Username: cfg.User, Password: cfg.Password},
+		TLS:              &amp;tls.Config{MinVersion: tls.VersionTLS12},
+		ConnOpenStrategy: clickhouse.ConnOpenRoundRobin, // spread load, skip dead nodes
+		DialTimeout:      5 * time.Second,
+		ReadTimeout:      30 * time.Second,
+		MaxOpenConns:     20,
+		MaxIdleConns:     10,
+		ConnMaxLifetime:  10 * time.Minute, // rebalance after a node comes back
+		Compression:      &amp;clickhouse.Compression{Method: clickhouse.CompressionLZ4},
+		ClientInfo: clickhouse.ClientInfo{
+			Products: []struct{ Name, Version string }{{Name: "orders-api", Version: cfg.Version}},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	if err := conn.Ping(pingCtx); err != nil {
+		return nil, fmt.Errorf("clickhouse ping: %w", err)
+	}
+	return conn, nil
+}</code></pre>
+<div class="tw"><table>
+<thead><tr><th>Protocol</th><th>Pick it when</th><th>Trade-off</th></tr></thead>
+<tbody>
+<tr><td>Native (9000 / 9440)</td><td>Go services you control; bulk inserts</td><td>Fastest, columnar blocks; needs a TCP load balancer if you use one</td></tr>
+<tr><td>HTTP (8123 / 8443)</td><td>Behind HTTP proxies, chproxy, serverless</td><td>Easier to route and inspect; somewhat more overhead per row</td></tr>
+</tbody></table></div>
+<p class="note">Size <code>MaxOpenConns</code> to your real concurrency. Each running query holds a connection for its whole duration, so a pool of 20 means at most 20 concurrent ClickHouse queries from this process.</p>
+
+<!-- ===================================================== 4 -->
+<h2 id="batch">4. Batch writes in the application</h2>
+<div class="rule"><b>The rule</b><p>Never insert one row per event. Buffer and flush every <b>10k to 100k rows</b> or every <b>1 to 5 seconds</b>, whichever comes first.</p></div>
+<p>Every <code>INSERT</code> creates at least one immutable <b>part</b> on disk. Background merges combine parts. If you
+create parts faster than merges can combine them, ClickHouse first slows inserts down and then rejects them with
+<code>TOO_MANY_PARTS</code> (code 252).</p>
+
+<figure class="fig">
+<svg viewBox="0 0 860 300" role="img" aria-labelledby="f2t">
+<title id="f2t">One insert per event creates many tiny parts and errors; buffering creates one part per flush that merges easily</title>
+<defs>
+<marker id="a2w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-w"/></marker>
+<marker id="a2x" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-x"/></marker>
+</defs>
+<text x="20" y="26" class="t-h xt">Anti-pattern: one INSERT per event</text>
+<g>
+<circle cx="40" cy="70" r="6" class="x"/><circle cx="40" cy="92" r="6" class="x"/><circle cx="40" cy="114" r="6" class="x"/><circle cx="62" cy="81" r="6" class="x"/><circle cx="62" cy="103" r="6" class="x"/>
+</g>
+<text x="20" y="140" class="t-s">5,000 events/s</text>
+<path d="M80 92 H178" class="ln-x" marker-end="url(#a2x)"/>
+<text x="92" y="84" class="t-s">5,000 INSERTs/s</text>
+<g>
+<rect x="190" y="62" width="14" height="14" class="x"/><rect x="208" y="62" width="14" height="14" class="x"/><rect x="226" y="62" width="14" height="14" class="x"/><rect x="244" y="62" width="14" height="14" class="x"/><rect x="262" y="62" width="14" height="14" class="x"/><rect x="280" y="62" width="14" height="14" class="x"/><rect x="298" y="62" width="14" height="14" class="x"/><rect x="316" y="62" width="14" height="14" class="x"/>
+<rect x="190" y="82" width="14" height="14" class="x"/><rect x="208" y="82" width="14" height="14" class="x"/><rect x="226" y="82" width="14" height="14" class="x"/><rect x="244" y="82" width="14" height="14" class="x"/><rect x="262" y="82" width="14" height="14" class="x"/><rect x="280" y="82" width="14" height="14" class="x"/><rect x="298" y="82" width="14" height="14" class="x"/><rect x="316" y="82" width="14" height="14" class="x"/>
+<rect x="190" y="102" width="14" height="14" class="x"/><rect x="208" y="102" width="14" height="14" class="x"/><rect x="226" y="102" width="14" height="14" class="x"/><rect x="244" y="102" width="14" height="14" class="x"/><rect x="262" y="102" width="14" height="14" class="x"/><rect x="280" y="102" width="14" height="14" class="x"/><rect x="298" y="102" width="14" height="14" class="x"/><rect x="316" y="102" width="14" height="14" class="x"/>
+</g>
+<text x="190" y="140" class="t-s">thousands of tiny parts per second</text>
+<path d="M342 92 H420" class="ln-x" marker-end="url(#a2x)"/>
+<rect x="430" y="62" width="200" height="60" rx="8" class="x"/>
+<text x="444" y="86" class="t-h">merges fall behind</text>
+<text x="444" y="106" class="t-s">CPU and disk spent on merging</text>
+<path d="M630 92 H668" class="ln-x" marker-end="url(#a2x)"/>
+<rect x="678" y="62" width="162" height="60" rx="8" class="x"/>
+<text x="690" y="86" class="t-h">Code 252</text>
+<text x="690" y="106" class="t-m">TOO_MANY_PARTS</text>
+
+<line x1="20" y1="166" x2="840" y2="166" class="ln-d"/>
+
+<text x="20" y="196" class="t-h wt">Pattern: buffer in the app, then insert</text>
+<g>
+<circle cx="40" cy="234" r="6" class="w"/><circle cx="40" cy="256" r="6" class="w"/><circle cx="40" cy="278" r="6" class="w"/><circle cx="62" cy="245" r="6" class="w"/><circle cx="62" cy="267" r="6" class="w"/>
+</g>
+<path d="M80 256 H178" class="ln-w" marker-end="url(#a2w)"/>
+<text x="92" y="248" class="t-s">NATS stream</text>
+<rect x="190" y="220" width="160" height="70" rx="8" class="w"/>
+<text x="202" y="242" class="t-h">buffer</text>
+<rect x="202" y="254" width="136" height="12" rx="3" class="node"/>
+<rect x="202" y="254" width="96" height="12" rx="3" class="wt"/>
+<text x="202" y="282" class="t-s">flush at 50k rows or 1 s</text>
+<path d="M350 256 H420" class="ln-w" marker-end="url(#a2w)"/>
+<text x="360" y="248" class="t-s">1 INSERT/s</text>
+<rect x="430" y="226" width="90" height="58" rx="6" class="c"/>
+<text x="442" y="252" class="t-h">1 part</text>
+<text x="442" y="270" class="t-s">50k rows</text>
+<path d="M520 256 H600" class="ln" marker-end="url(#a2w)"/>
+<rect x="610" y="220" width="230" height="70" rx="8" class="c"/>
+<text x="622" y="244" class="t-h">merges keep up easily</text>
+<text x="622" y="264" class="t-s">fewer, bigger parts; faster reads</text>
+<text x="622" y="280" class="t-s">same data, 5,000x fewer inserts</text>
+</svg>
+<figcaption>The buffer turns a fire hose of single rows into a steady drip of large inserts. Target roughly one insert per second per table, not thousands.</figcaption>
+</figure>
+
+<div class="analogy">Think of a dishwasher. Running it once per spoon is wasteful and the kitchen floods with
+half-clean cutlery. Fill it, then run it.</div>
+
+<p>In this architecture producers publish events to NATS JetStream (setup in <a href="#nats">section 6</a>), and
+the ingest service pulls them in large batches. <code>Fetch</code> returns when it has <code>maxRows</code> messages or
+<code>maxWait</code> has passed, which is exactly the "N rows or T seconds" rule. Messages are acknowledged only after
+ClickHouse accepts the insert, so nothing is lost if the pod or ClickHouse dies mid-batch.</p>
+<pre><code>// Ingester pulls events from JetStream and writes them to ClickHouse in large batches.
+type Ingester struct {
+	conn    driver.Conn
+	cons    jetstream.Consumer // durable pull consumer, shared by all ingest pods
+	maxRows int                // e.g. 50_000
+	maxWait time.Duration      // e.g. 1 * time.Second
+}
+
+func (in *Ingester) Run(ctx context.Context) {
+	for ctx.Err() == nil {
+		batch, err := in.cons.Fetch(in.maxRows, jetstream.FetchMaxWait(in.maxWait))
+		if err != nil {
+			log.Printf("fetch: %v", err)
+			time.Sleep(time.Second)
+			continue
+		}
+		msgs := make([]jetstream.Msg, 0, in.maxRows)
+		rows := make([]Event, 0, in.maxRows)
+		for m := range batch.Messages() {
+			var e Event
+			if err := json.Unmarshal(m.Data(), &amp;e); err != nil {
+				_ = m.Term() // poison message: never redeliver
+				continue
+			}
+			msgs, rows = append(msgs, m), append(rows, e)
+		}
+		if len(rows) &gt; 0 {
+			// Detach from ctx so a shutdown signal does not abort a half-sent batch.
+			in.handle(context.WithoutCancel(ctx), msgs, rows)
+		}
+	}
+}
+
+func (in *Ingester) handle(ctx context.Context, msgs []jetstream.Msg, rows []Event) {
+	token := batchToken(msgs) // stable ID for this batch (section 6)
+	err := in.sendWithRetry(ctx, token, rows)
+	if err != nil &amp;&amp; !retryable(err) {
+		log.Printf("batch of %d rows rejected, sending to dead-letter: %v", len(rows), err)
+		deadLetter(rows)
+	}
+	for _, m := range msgs {
+		switch {
+		case err == nil:
+			_ = m.Ack()
+		case retryable(err): // ClickHouse down or overloaded: events stay in the stream
+			_ = m.NakWithDelay(10 * time.Second)
+		default: // bad data or schema bug: retrying will never work
+			_ = m.Term()
+		}
+	}
+}
+
+func (in *Ingester) send(ctx context.Context, rows []Event) error {
+	batch, err := in.conn.PrepareBatch(ctx,
+		"INSERT INTO shop.events (event_time, tenant_id, user_id, event_type, country, url, duration_ms)")
+	if err != nil {
+		return err
+	}
+	for _, e := range rows {
+		if err := batch.Append(e.EventTime, e.TenantID, e.UserID, e.EventType, e.Country, e.URL, e.DurationMs); err != nil {
+			_ = batch.Abort()
+			return err
+		}
+	}
+	return batch.Send()
+}</code></pre>
+<div class="dodont">
+<div class="c-do"><b>Do</b><ul>
+<li>Sort the batch by the table's partition key if it spans many months, so one insert touches few partitions</li>
+<li>Set the consumer's <code>MaxAckPending</code> above <code>maxRows</code>, or <code>Fetch</code> can never fill a batch</li>
+<li>Export batch size, insert latency and consumer lag (pending messages) as metrics</li>
+</ul></div>
+<div class="c-dont"><b>Don't</b><ul>
+<li>Insert from an HTTP handler, one row per request</li>
+<li>Ack messages before the insert succeeds; that turns a crash into data loss</li>
+<li>Insert into many partitions in one batch (limit: <code>max_partitions_per_insert_block</code>, default 100)</li>
+</ul></div>
+</div>
+
+<!-- ===================================================== 5 -->
+<h2 id="async">5. Use async inserts when you cannot batch</h2>
+<div class="rule"><b>The rule</b><p>If many independent writers each send a few rows (serverless functions, edge agents, many pods), let the server batch for you with <code>async_insert=1</code>.</p></div>
+<p>With async inserts, ClickHouse collects small inserts in memory and writes them as one part when the buffer reaches a
+size or age threshold. Keep <code>wait_for_async_insert=1</code> so your code only gets success after the data is
+actually written.</p>
+<pre><code>func InsertFew(ctx context.Context, conn driver.Conn, e Event) error {
+	ctx = clickhouse.Context(ctx, clickhouse.WithSettings(clickhouse.Settings{
+		"async_insert":          1,
+		"wait_for_async_insert": 1, // ack only after the server flushed to a part
+	}))
+	return conn.Exec(ctx,
+		`INSERT INTO shop.events (event_time, tenant_id, user_id, event_type, country, url, duration_ms)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		e.EventTime, e.TenantID, e.UserID, e.EventType, e.Country, e.URL, e.DurationMs)
+}</code></pre>
+<div class="tw"><table>
+<thead><tr><th>Strategy</th><th>Best when</th><th>Watch out for</th></tr></thead>
+<tbody>
+<tr><td>NATS JetStream + batch consumer (sections 4 and 6)</td><td>You control the producers and must not lose events during spikes or ClickHouse outages</td><td>One more (small) system to run; delivery is at-least-once</td></tr>
+<tr><td>Async insert, wait=1</td><td>Many small writers you cannot coordinate</td><td>Each call waits up to the flush timeout (about 200 ms by default) before it returns</td></tr>
+<tr><td>Async insert, wait=0</td><td>Fire-and-forget telemetry where loss is acceptable</td><td>Errors are invisible to the app; a server crash loses the in-memory buffer</td></tr>
+</tbody></table></div>
+
+<!-- ===================================================== 6 -->
+<h2 id="retry">6. Make retries idempotent</h2>
+<div class="rule"><b>The rule</b><p>When an insert fails, retry the <b>same batch with the same rows in the same order</b> and the same <code>insert_deduplication_token</code>.</p></div>
+<p>A timeout does not tell you whether the server wrote the data. If you retry with a different batch you might write
+it twice. ClickHouse deduplicates a repeated insert block on replicated tables: if the token (or block hash) matches a
+recent insert, the retry is a no-op.</p>
+<pre><code>// withToken tags the insert so ClickHouse drops it if the same batch was already written.
+// batchToken derives the token from the JetStream sequence range, so a redelivery of the
+// exact same messages produces the same token and is dropped by ClickHouse.
+func batchToken(msgs []jetstream.Msg) string {
+	first, _ := msgs[0].Metadata()
+	last, _ := msgs[len(msgs)-1].Metadata()
+	return fmt.Sprintf("events-%d-%d", first.Sequence.Stream, last.Sequence.Stream)
+}
+
+func withToken(ctx context.Context, token string) context.Context {
+	return clickhouse.Context(ctx, clickhouse.WithSettings(clickhouse.Settings{
+		"insert_deduplication_token": token,
+	}))
+}
+
+func (in *Ingester) sendWithRetry(ctx context.Context, token string, rows []Event) error {
+	ctx = withToken(ctx, token) // same token on every attempt
+
+	backoff := 200 * time.Millisecond
+	for attempt := 1; ; attempt++ {
+		err := in.send(ctx, rows)
+		if err == nil || !retryable(err) || attempt == 6 {
+			return err
+		}
+		jitter := time.Duration(rand.Int64N(int64(backoff / 2)))
+		time.Sleep(backoff + jitter)
+		backoff = min(backoff*2, 10*time.Second)
+	}
+}</code></pre>
+<p class="note">Deduplication happens in the <code>Replicated*MergeTree</code> tables and keeps the last 100 blocks by default
+(<code>replicated_deduplication_window</code>). Plain <code>MergeTree</code> needs <code>non_replicated_deduplication_window</code>
+set above 0. Through a <code>Distributed</code> table, prefer synchronous distributed inserts
+(<code>distributed_foreground_insert=1</code>) so the retry reaches the same dedup check. In-process retries reuse the exact batch, so they are always deduplicated.
+After a <code>Nak</code>, JetStream may redeliver the messages in a different grouping, which gives a new token; if the
+first insert had actually landed, that can create duplicates. Treat the pipeline as at-least-once and use
+<code>ReplacingMergeTree</code> (section 8) on tables where a rare duplicate matters.</p>
+
+<h3 id="nats">Absorb spikes and outages with NATS JetStream</h3>
+<p>Retries cover blips of a few seconds. For a longer outage (a ClickHouse upgrade, a Keeper problem) or a traffic
+spike, events need somewhere durable to wait. NATS JetStream is a good fit for this: a single Go binary, a 3-node
+cluster for high availability, persistent streams with acknowledgements and replay, and a first-class Go client.
+It gives you the decoupling of a message broker without the operational weight of a large broker cluster.</p>
+<div class="analogy">A post office sorting bin. Letters (events) wait in the bin until a courier (an ingest pod)
+takes a bundle and signs for it after delivery. If the courier never signs, the bundle goes back in the bin for the
+next courier. Several couriers can work from the same bin.</div>
+<pre><code>// One-time setup (or run it at ingest startup; CreateOrUpdate is idempotent).
+func setupStream(ctx context.Context, js jetstream.JetStream) (jetstream.Consumer, error) {
+	_, err := js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
+		Name:       "EVENTS",
+		Subjects:   []string{"events.&gt;"},       // events.&lt;tenant&gt;.&lt;type&gt;
+		Storage:    jetstream.FileStorage,
+		Replicas:   3,                            // survives one NATS node down
+		MaxAge:     72 * time.Hour,               // how long ClickHouse can be down without loss
+		MaxBytes:   50 &lt;&lt; 30,                      // 50 GiB cap
+		Discard:    jetstream.DiscardNew,         // when full, reject publishes: backpressure to producers
+		Duplicates: 2 * time.Minute,              // window for publish dedup by message ID
+	})
+	if err != nil {
+		return nil, err
+	}
+	return js.CreateOrUpdateConsumer(ctx, "EVENTS", jetstream.ConsumerConfig{
+		Durable:       "clickhouse-ingest",       // all ingest pods share it and split the work
+		AckPolicy:     jetstream.AckExplicitPolicy,
+		AckWait:       2 * time.Minute,           // longer than insert + all in-process retries
+		MaxAckPending: 200_000,                   // must exceed batch size x number of pods
+		MaxDeliver:    20,                        // then the message is dropped; alert on it
+	})
+}
+
+// Producer side: publish with a message ID so a producer retry is not stored twice.
+func Publish(ctx context.Context, js jetstream.JetStream, e Event, eventID string) error {
+	data, err := json.Marshal(e)
+	if err != nil {
+		return err
+	}
+	subject := fmt.Sprintf("events.%d.%s", e.TenantID, e.EventType)
+	_, err = js.Publish(ctx, subject, data, jetstream.WithMsgID(eventID))
+	return err // an error here (for example stream full) is the producer's signal to slow down
+}</code></pre>
+<div class="tw"><table>
+<thead><tr><th>Option</th><th>Cost and effort</th><th>Pick it when</th></tr></thead>
+<tbody>
+<tr><td>No buffer, in-memory batching only</td><td>Free, nothing to run</td><td>Losing a few seconds of data on a crash is acceptable</td></tr>
+<tr><td>NATS JetStream (recommended)</td><td>3 small nodes (a few hundred MB RAM each plus disk); self-hosted, open source</td><td>Data must survive spikes and ClickHouse outages; several ingest pods; you want replay</td></tr>
+<tr><td>Async insert, wait=1 (section 5)</td><td>Free; producers keep the data until ClickHouse acks</td><td>Producers can retry themselves and you have no ingest service</td></tr>
+<tr><td>Managed queue (for example AWS SQS)</td><td>Pay per request, nothing to operate</td><td>You would rather pay than run NATS, and sub-second batching is not critical</td></tr>
+</tbody></table></div>
+<p class="note">Size <code>MaxAge</code> and <code>MaxBytes</code> from your event rate and the longest ClickHouse outage you want to ride out (for example 20k events/s at 300 bytes is about 20 GiB per hour of outage). Alert on consumer lag (<code>num_pending</code>) and on messages that hit <code>MaxDeliver</code>. Each JSON message per event is simple; at very high rates, have producers pack many events into one message to cut per-message overhead.</p>
+
+<!-- ===================================================== 7 -->
+<h2 id="errors">7. Classify errors and apply backpressure</h2>
+<div class="rule"><b>The rule</b><p>Retry only errors that can succeed later; fail fast on the rest; slow down producers when ClickHouse says it is overloaded.</p></div>
+<pre><code>// retryable reports whether trying the same request again may succeed.
+func retryable(err error) bool {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return false // the caller gave up; do not keep going
+	}
+	var ex *clickhouse.Exception
+	if errors.As(err, &amp;ex) {
+		switch ex.Code {
+		case 159, // TIMEOUT_EXCEEDED
+			202, // TOO_MANY_SIMULTANEOUS_QUERIES
+			209, // SOCKET_TIMEOUT
+			210, // NETWORK_ERROR
+			241, // MEMORY_LIMIT_EXCEEDED (server busy, may pass later)
+			242, // TABLE_IS_READ_ONLY (replica lost Keeper)
+			252, // TOO_MANY_PARTS (back off longer)
+			319, // UNKNOWN_STATUS_OF_INSERT (retry with the same token)
+			999: // KEEPER_EXCEPTION
+			return true
+		}
+		return false // 62 syntax, 60 unknown table, 53 type mismatch, 497 access denied, 516 auth...
+	}
+	var ne net.Error
+	return errors.As(err, &amp;ne) || errors.Is(err, io.EOF) || errors.Is(err, syscall.ECONNRESET)
+}</code></pre>
+<div class="tw"><table>
+<thead><tr><th>Signal</th><th>App response</th></tr></thead>
+<tbody>
+<tr><td>252 <code>TOO_MANY_PARTS</code></td><td>Pause flushing for seconds, grow the batch size, alert. It means you insert too often.</td></tr>
+<tr><td>202 / 241 on reads</td><td>Return 503 with <code>Retry-After</code>; do not hammer the server with instant retries</td></tr>
+<tr><td>242 read-only replica</td><td>Retry; the driver's round-robin will try another replica. Page someone if it persists (Keeper problem).</td></tr>
+<tr><td>Syntax, type, auth errors</td><td>Never retry. Send the batch to a dead-letter store and alert; it is a deploy bug.</td></tr>
+</tbody></table></div>
+
+<!-- ===================================================== 8 -->
+<h2 id="append">8. Model changes as appends, not updates</h2>
+<div class="rule"><b>The rule</b><p>ClickHouse is not your OLTP database. Write a new version of a row instead of updating it, and let the engine collapse versions.</p></div>
+<p><code>ALTER TABLE ... UPDATE</code> is a <b>mutation</b>: it rewrites whole parts in the background. Fine for a rare
+fix, terrible as an app code path. For entities that change (order status, user profile), insert each change with a
+version and use <code>ReplacingMergeTree</code>.</p>
+<div class="analogy">A ledger, not a whiteboard. You never erase a line; you add a new line and the latest one wins.</div>
+<pre><code>CREATE TABLE shop.orders
+(
+    order_id   UInt64,
+    tenant_id  UInt32,
+    status     LowCardinality(String),
+    amount     Decimal(12,2),
+    updated_at DateTime64(3, 'UTC'),
+    is_deleted UInt8 DEFAULT 0
+)
+ENGINE = ReplacingMergeTree(updated_at, is_deleted)
+ORDER BY (tenant_id, order_id);</code></pre>
+<pre><code>// "Update" = insert the new state. Merges eventually keep only the latest version.
+func (r *OrderRepo) SetStatus(ctx context.Context, o Order, status string) error {
+	return r.conn.Exec(ctx,
+		`INSERT INTO shop.orders (order_id, tenant_id, status, amount, updated_at) VALUES (?, ?, ?, ?, ?)`,
+		o.ID, o.TenantID, status, o.Amount, time.Now().UTC())
+}
+
+// Reads must tolerate unmerged duplicates: use FINAL (simple) or argMax (often faster on big scans).
+const currentOrders = `
+SELECT order_id, argMax(status, updated_at) AS status
+FROM shop.orders
+WHERE tenant_id = {tenant:UInt32}
+GROUP BY order_id`</code></pre>
+<div class="tw"><table>
+<thead><tr><th>Need</th><th>Use</th><th>Trade-off</th></tr></thead>
+<tbody>
+<tr><td>Latest state of an entity</td><td><code>ReplacingMergeTree</code> + <code>FINAL</code> or <code>argMax</code></td><td>Reads do extra work until merges finish</td></tr>
+<tr><td>Running totals that go up and down</td><td><code>CollapsingMergeTree</code> or sum of signed deltas</td><td>App must send cancel rows correctly</td></tr>
+<tr><td>Occasional deletes (privacy requests)</td><td>Lightweight <code>DELETE FROM</code></td><td>Rows are hidden at once but disk is reclaimed later by merges</td></tr>
+<tr><td>Expiry of old data</td><td><code>TTL</code> or <code>DROP PARTITION</code></td><td>Cheapest option; plan partitions around it</td></tr>
+</tbody></table></div>
+<p class="note">Keep personal data out of ClickHouse where you can (store a surrogate ID and keep the identity in your OLTP store). Deletes in a columnar store are always more expensive than in a row store.</p>
+
+<!-- ===================================================== 9 -->
+<h2 id="read">9. Bound every read: params, timeouts, limits</h2>
+<div class="rule"><b>The rule</b><p>Every query from the app uses bound parameters, a context deadline, a server-side <code>max_execution_time</code>, a result cap, and a tag.</p></div>
+
+<figure class="fig">
+<svg viewBox="0 0 860 210" role="img" aria-labelledby="f3t">
+<title id="f3t">Read request lifecycle: request, resolve tenant, cache lookup, build bounded query, ClickHouse with reader profile, stream and cap rows, response</title>
+<defs><marker id="a3r" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-r"/></marker></defs>
+<rect x="10" y="40" width="110" height="80" rx="8" class="r"/><text x="22" y="66" class="t-h">1 Request</text><text x="22" y="86" class="t-s">HTTP / gRPC</text><text x="22" y="102" class="t-s">ctx deadline 3 s</text>
+<rect x="150" y="40" width="120" height="80" rx="8" class="r"/><text x="162" y="66" class="t-h">2 Resolve</text><text x="162" y="86" class="t-s">tenant from token</text><text x="162" y="102" class="t-s">validate range</text>
+<rect x="300" y="40" width="110" height="80" rx="8" class="node"/><text x="312" y="66" class="t-h">3 Cache</text><text x="312" y="86" class="t-s">hit: return</text><text x="312" y="102" class="t-s">miss: continue</text>
+<rect x="440" y="40" width="130" height="80" rx="8" class="r"/><text x="452" y="66" class="t-h">4 Build query</text><text x="452" y="86" class="t-s">{param:Type}</text><text x="452" y="102" class="t-s">settings, query_id</text>
+<rect x="600" y="40" width="110" height="80" rx="8" class="c"/><text x="612" y="66" class="t-h">5 ClickHouse</text><text x="612" y="86" class="t-s">api_reader</text><text x="612" y="102" class="t-s">profile limits</text>
+<rect x="740" y="40" width="110" height="80" rx="8" class="r"/><text x="752" y="66" class="t-h">6 Stream</text><text x="752" y="86" class="t-s">rows.Next()</text><text x="752" y="102" class="t-s">fill cache</text>
+<path d="M120 80 H148" class="ln-r" marker-end="url(#a3r)"/><path d="M270 80 H298" class="ln-r" marker-end="url(#a3r)"/>
+<path d="M410 80 H438" class="ln-r" marker-end="url(#a3r)"/><path d="M570 80 H598" class="ln-r" marker-end="url(#a3r)"/>
+<path d="M710 80 H738" class="ln-r" marker-end="url(#a3r)"/>
+<path d="M355 120 V170 H795 V122" class="ln-d" marker-end="url(#a3r)"/>
+<text x="440" y="164" class="t-s">cache hit skips ClickHouse entirely</text>
+<text x="10" y="200" class="t-s">Two timeouts on purpose: the Go context cancels the client wait; max_execution_time stops the work on the server even if the cancel packet is lost.</text>
+</svg>
+<figcaption>Each step either narrows the question or protects the cluster. Steps 2 and 4 are where most production incidents are prevented.</figcaption>
+</figure>
+
+<pre><code>type PageStat struct {
+	URL   string
+	Views uint64
+}
+
+func (r *Repo) TopPages(ctx context.Context, tenant uint32, from, to time.Time, limit int) ([]PageStat, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Second)
+	defer cancel()
+
+	queryID := uuid.NewString()
+	log.Printf("request=%s clickhouse_query_id=%s", requestID(ctx), queryID) // link app logs to query_log
+
+	ctx = clickhouse.Context(ctx,
+		clickhouse.WithQueryID(queryID),
+		clickhouse.WithParameters(clickhouse.Parameters{ // server-side binding: no SQL injection
+			"tenant": strconv.FormatUint(uint64(tenant), 10),
+			"from":   from.UTC().Format(time.DateTime),
+			"to":     to.UTC().Format(time.DateTime),
+			"lim":    strconv.Itoa(limit),
+		}),
+		clickhouse.WithSettings(clickhouse.Settings{
+			"max_execution_time": 3,      // server stops the work too
+			"max_result_rows":    10_000, // a bug cannot return a million rows
+			"log_comment":        "api.TopPages",
+		}),
+	)
+
+	rows, err := r.conn.Query(ctx, `
+		SELECT url, sum(views) AS views
+		FROM shop.page_views_hourly
+		WHERE tenant_id = {tenant:UInt32}
+		  AND hour &gt;= {from:DateTime} AND hour &lt; {to:DateTime}
+		GROUP BY url
+		ORDER BY views DESC
+		LIMIT {lim:UInt32}`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make([]PageStat, 0, limit)
+	for rows.Next() { // streams blocks; does not load everything first
+		var p PageStat
+		if err := rows.Scan(&amp;p.URL, &amp;p.Views); err != nil {
+			return nil, err
+		}
+		out = append(out, p)
+	}
+	return out, rows.Err()
+}</code></pre>
+<div class="dodont">
+<div class="c-do"><b>Do</b><ul>
+<li>Select only the columns you need; a columnar store reads each named column from disk</li>
+<li>Validate and clamp time ranges in the handler (for example max 90 days)</li>
+<li>Use <code>conn.Select(ctx, &amp;dest, q)</code> for small results, <code>Query</code> + <code>Next</code> for large ones</li>
+</ul></div>
+<div class="c-dont"><b>Don't</b><ul>
+<li><code>SELECT *</code> from wide tables</li>
+<li>Build SQL with <code>fmt.Sprintf</code> from request values</li>
+<li>Rely only on the HTTP server's timeout; the query keeps running on ClickHouse</li>
+</ul></div>
+</div>
+
+<!-- ===================================================== 10 -->
+<h2 id="rollup">10. Serve dashboards from rollups</h2>
+<div class="rule"><b>The rule</b><p>If a chart runs the same aggregation on every page load, compute it once at insert time with a materialized view and query the small table.</p></div>
+<p>A materialized view in ClickHouse is an insert trigger: each block inserted into <code>events</code> is aggregated and
+written into the target table. The API then scans thousands of rows instead of billions.</p>
+<pre><code>CREATE TABLE shop.page_views_hourly
+(
+    tenant_id UInt32,
+    hour      DateTime,
+    url       String,
+    views     SimpleAggregateFunction(sum, UInt64),
+    users     AggregateFunction(uniq, UInt64)
+)
+ENGINE = AggregatingMergeTree
+PARTITION BY toYYYYMM(hour)
+ORDER BY (tenant_id, hour, url);
+
+CREATE MATERIALIZED VIEW shop.page_views_hourly_mv TO shop.page_views_hourly AS
+SELECT tenant_id, toStartOfHour(event_time) AS hour, url,
+       count() AS views, uniqState(user_id) AS users
+FROM shop.events
+WHERE event_type = 'page_view'
+GROUP BY tenant_id, hour, url;
+
+-- App query: always re-aggregate, because rows for one key may not be merged yet
+SELECT url, sum(views) AS views, uniqMerge(users) AS users
+FROM shop.page_views_hourly
+WHERE tenant_id = 42 AND hour &gt;= now() - INTERVAL 7 DAY
+GROUP BY url ORDER BY views DESC LIMIT 20;</code></pre>
+<p><b>Do this now:</b> sort <code>system.query_log</code> by total <code>read_rows</code> grouped by <code>normalized_query_hash</code>. The top three are your rollup candidates.</p>
+<div class="tw"><table>
+<thead><tr><th>Option</th><th>Gain</th><th>Cost</th></tr></thead>
+<tbody>
+<tr><td>Materialized view to rollup</td><td>Queries 100x to 10,000x cheaper</td><td>Fixed dimensions; a new dimension means a new view and a backfill</td></tr>
+<tr><td>Projection on the raw table</td><td>Optimizer picks it automatically; no app change</td><td>Less control; stored inside each part</td></tr>
+<tr><td>Query raw table</td><td>Full flexibility for ad-hoc filters</td><td>Cost grows with data; protect with limits (section 12)</td></tr>
+</tbody></table></div>
+
+<!-- ===================================================== 11 -->
+<h2 id="tenant">11. Enforce tenant isolation in two layers</h2>
+<div class="rule"><b>The rule</b><p>The tenant ID comes from the authenticated identity, is always a bound parameter, and is backed by a server-side guard.</p></div>
+<p><b>Layer 1, the app:</b> make it impossible to build a query without a tenant. A small type does this.</p>
+<pre><code>// TenantScope can only be created from a verified token, so repositories cannot forget the filter.
+type TenantScope struct{ id uint32 }
+
+func ScopeFromClaims(c Claims) (TenantScope, error) {
+	if c.TenantID == 0 {
+		return TenantScope{}, errors.New("no tenant in token")
+	}
+	return TenantScope{id: c.TenantID}, nil
+}
+
+func (s TenantScope) Params(extra clickhouse.Parameters) clickhouse.Parameters {
+	p := clickhouse.Parameters{"tenant": strconv.FormatUint(uint64(s.id), 10)}
+	maps.Copy(p, extra)
+	return p
+}</code></pre>
+<p><b>Layer 2, the server:</b> a quota per API user stops one noisy tenant (or bug) from starving others; for
+untrusted query surfaces add a row policy so even a missing filter cannot leak rows.</p>
+<pre><code>-- Cap what the API user can do per hour
+CREATE QUOTA api_hourly FOR INTERVAL 1 HOUR MAX queries = 100000, read_rows = 50000000000 TO api_reader;
+
+-- Strongest isolation: one ClickHouse user per tenant with a row policy
+CREATE ROW POLICY tenant_42 ON shop.events USING tenant_id = 42 TO tenant_42_user;</code></pre>
+<div class="tw"><table>
+<thead><tr><th>Model</th><th>Isolation</th><th>Operational cost</th></tr></thead>
+<tbody>
+<tr><td>Shared tables, app filter only</td><td>Depends on code review</td><td>Lowest</td></tr>
+<tr><td>Shared tables, app filter + quotas</td><td>Good for internal APIs</td><td>Low (recommended default)</td></tr>
+<tr><td>Per-tenant users + row policies</td><td>Server-enforced; safe for customer-written SQL</td><td>User lifecycle per tenant; one pool per tenant or per-query auth</td></tr>
+<tr><td>Database per tenant</td><td>Strongest, easy per-tenant delete</td><td>Thousands of tables hurt merges and Keeper; only for few large tenants</td></tr>
+</tbody></table></div>
+
+<!-- ===================================================== 12 -->
+<h2 id="isolate">12. Separate users per workload</h2>
+<div class="rule"><b>The rule</b><p>Ingest, API and ad-hoc analysts each get their own ClickHouse user and settings profile, and your service holds one pool per user it needs.</p></div>
+<div class="analogy">Lanes on a motorway. Trucks (ingest), cars (API) and the occasional oversized load (an analyst's
+year-long scan) share the road, but each lane has its own speed limit so one cannot block the others.</div>
+<pre><code>CREATE SETTINGS PROFILE api_profile SETTINGS
+    readonly = 1, max_execution_time = 5, max_memory_usage = 4000000000,
+    max_threads = 8, max_result_rows = 100000;
+CREATE SETTINGS PROFILE ingest_profile SETTINGS
+    max_insert_threads = 4, async_insert = 0;
+CREATE SETTINGS PROFILE adhoc_profile SETTINGS
+    readonly = 1, max_execution_time = 300, max_memory_usage = 20000000000, priority = 10;
+
+CREATE USER api_reader     IDENTIFIED WITH sha256_password BY '...' SETTINGS PROFILE 'api_profile';
+CREATE USER ingest_writer  IDENTIFIED WITH sha256_password BY '...' SETTINGS PROFILE 'ingest_profile';
+GRANT SELECT ON shop.* TO api_reader;
+GRANT INSERT ON shop.events TO ingest_writer;</code></pre>
+<pre><code>// A service that both reads and writes keeps two pools with different credentials.
+type Stores struct {
+	Read  driver.Conn // api_reader: readonly, short timeouts
+	Write driver.Conn // ingest_writer: INSERT only
+}</code></pre>
+<p class="note">Load passwords from a secret manager or environment at startup, never from source. Rotate by creating the new credential, deploying, then dropping the old one.</p>
+
+<!-- ===================================================== 13 -->
+<h2 id="cache">13. Cache and coalesce repeated queries</h2>
+<div class="rule"><b>The rule</b><p>Round time ranges so identical dashboards produce identical cache keys, and collapse concurrent identical queries into one.</p></div>
+<p>Ten users opening the same dashboard at 09:00 should cause one ClickHouse query, not ten. Rounding "last 24 hours"
+to the minute makes the key repeat; <span class="kbd">singleflight</span> merges requests that arrive together.</p>
+<pre><code>var group singleflight.Group
+
+func (s *Service) TopPagesCached(ctx context.Context, t TenantScope, window time.Duration) ([]PageStat, error) {
+	to := time.Now().UTC().Truncate(time.Minute) // same key for a whole minute
+	from := to.Add(-window)
+	key := fmt.Sprintf("top:%d:%d:%d", t.id, from.Unix(), to.Unix())
+
+	if v, ok := s.cache.Get(key); ok {
+		return v.([]PageStat), nil
+	}
+	v, err, _ := group.Do(key, func() (any, error) {
+		res, err := s.repo.TopPages(ctx, t.id, from, to, 20)
+		if err == nil {
+			s.cache.Set(key, res, time.Minute)
+		}
+		return res, err
+	})
+	if err != nil {
+		return nil, err
+	}
+	return v.([]PageStat), nil
+}</code></pre>
+<p class="note">ClickHouse also has a server-side query cache (<code>use_query_cache=1</code>). It helps across services but is per server and does not see your app's notion of freshness; an app cache is usually the first lever.</p>
+
+<!-- ===================================================== 14 -->
+<h2 id="page">14. Paginate with keysets, not OFFSET</h2>
+<div class="rule"><b>The rule</b><p>Page through results by remembering the last sort key, and order by columns that match the table's sorting key.</p></div>
+<p><code>LIMIT 50 OFFSET 100000</code> makes ClickHouse produce and discard 100,000 rows on every page. A keyset cursor
+reads only the next 50, and when it follows the sorting key ClickHouse can stop early.</p>
+<pre><code>const pageQuery = `
+SELECT event_time, user_id, event_type, url
+FROM shop.events
+WHERE tenant_id = {tenant:UInt32}
+  AND (event_time, user_id) &lt; ({cur_time:DateTime64(3)}, {cur_user:UInt64})
+ORDER BY event_time DESC, user_id DESC
+LIMIT 50`
+
+// Cursor is opaque to clients: base64 of the last row's (event_time, user_id).
+type Cursor struct {
+	Time time.Time `json:"t"`
+	User uint64    `json:"u"`
+}</code></pre>
+
+<!-- ===================================================== 15 -->
+<h2 id="migrate">15. Versioned, additive schema migrations</h2>
+<div class="rule"><b>The rule</b><p>Schema changes are versioned files applied by a migration job before the new app version rolls out, and every change is backward compatible with the running version.</p></div>
+<ol>
+<li><b>Add, don't change.</b> <code>ADD COLUMN</code> with a <code>DEFAULT</code> is instant (metadata only). Changing a column's type rewrites data.</li>
+<li><b>Expand, then contract.</b> Deploy code that writes both old and new columns, backfill, switch reads, then drop the old column in a later release.</li>
+<li><b>On a cluster, use <code>ON CLUSTER</code></b> (or a Replicated database) so every node gets the DDL.</li>
+<li><b>Name explicit insert columns in Go</b> (<code>INSERT INTO t (a, b, c)</code>) so adding a column never breaks a running writer.</li>
+</ol>
+<pre><code>-- migrations/0007_add_referrer.up.sql
+ALTER TABLE shop.events ON CLUSTER prod
+    ADD COLUMN IF NOT EXISTS referrer LowCardinality(String) DEFAULT '';</code></pre>
+<p>Tools like <span class="kbd">golang-migrate</span> (has a ClickHouse driver) or <span class="kbd">goose</span> track
+applied versions. Run them as a CI step or a Kubernetes Job, not from every app pod at startup, so two pods never race.</p>
+
+<!-- ===================================================== 16 -->
+<h2 id="test">16. Test against a real ClickHouse</h2>
+<div class="rule"><b>The rule</b><p>Integration tests run your real SQL against a real ClickHouse container with the same major version as production.</p></div>
+<p>SQL mocks cannot tell you that a function does not exist, a type does not cast, or a materialized view produces
+wrong totals. Testcontainers starts a throwaway server per test package.</p>
+<pre><code>import (
+	"github.com/ClickHouse/clickhouse-go/v2"
+	tcch "github.com/testcontainers/testcontainers-go/modules/clickhouse"
+)
+
+func TestTopPages(t *testing.T) {
+	ctx := context.Background()
+	ctr, err := tcch.Run(ctx, "clickhouse/clickhouse-server:25.8",
+		tcch.WithUsername("test"), tcch.WithPassword("test"), tcch.WithDatabase("shop"),
+		tcch.WithInitScripts("../../migrations/0001_init.up.sql"),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = ctr.Terminate(ctx) })
+
+	addr, _ := ctr.ConnectionHost(ctx)
+	conn, err := clickhouse.Open(&amp;clickhouse.Options{
+		Addr: []string{addr}, Auth: clickhouse.Auth{Database: "shop", Username: "test", Password: "test"},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// insert fixture events, then assert on what the repository returns
+	repo := &amp;Repo{conn: conn}
+	got, err := repo.TopPages(ctx, 42, time.Now().Add(-time.Hour), time.Now(), 10)
+	// ...
+}</code></pre>
+<p class="note">Testing rollups: insert into the raw table, then query the rollup with the same re-aggregation the app uses. Do not call <code>OPTIMIZE FINAL</code> in tests to "fix" duplicates; the app must handle unmerged rows.</p>
+
+<!-- ===================================================== 17 -->
+<h2 id="observe">17. Tag queries so you can trace them</h2>
+<div class="rule"><b>The rule</b><p>Every query carries a <code>log_comment</code> naming the code path and a <code>query_id</code> you also log. Then <code>system.query_log</code> becomes your per-endpoint profiler.</p></div>
+<pre><code>-- Which endpoints cost the most in the last day?
+SELECT log_comment,
+       count()                                   AS calls,
+       quantile(0.95)(query_duration_ms)         AS p95_ms,
+       formatReadableQuantity(sum(read_rows))    AS rows_read,
+       formatReadableSize(max(memory_usage))     AS peak_mem
+FROM system.query_log
+WHERE type = 'QueryFinish' AND event_time &gt; now() - INTERVAL 1 DAY
+  AND user = 'api_reader'
+GROUP BY log_comment
+ORDER BY sum(read_rows) DESC;</code></pre>
+<p>Pair this with app metrics: flush latency, batch size, buffer depth, rows inserted, query errors by code. If you use
+OpenTelemetry, <code>clickhouse.WithSpan(span.SpanContext())</code> passes the trace context to the server so its spans join your trace.</p>
+<div class="tw"><table>
+<thead><tr><th>Alert on</th><th>Where</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>Active parts per partition rising</td><td><code>system.parts</code> / Prometheus</td><td>Early warning before error 252</td></tr>
+<tr><td>Insert errors or retries per minute</td><td>App metrics</td><td>Data may be landing in the dead-letter store</td></tr>
+<tr><td>p95 latency per <code>log_comment</code></td><td><code>system.query_log</code></td><td>Catches a missing rollup or a bad key after a release</td></tr>
+<tr><td>Replica delay / read-only replicas</td><td><code>system.replicas</code></td><td>Reads may be stale or inserts failing</td></tr>
+</tbody></table></div>
+
+<!-- ===================================================== 18 -->
+<h2 id="shutdown">18. Health checks and graceful shutdown</h2>
+<div class="rule"><b>The rule</b><p>Readiness checks are cheap and bounded; shutdown finishes the current batch before closing connections.</p></div>
+<pre><code>// Readiness: a ping with a short timeout. Never run a real query in a probe.
+func (s *Server) ready(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 500*time.Millisecond)
+	defer cancel()
+	if err := s.ch.Ping(ctx); err != nil {
+		http.Error(w, "clickhouse unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+}
+
+func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	cfg := loadConfig()
+	conn := must(NewClickHouse(ctx, cfg))
+	nc := must(nats.Connect(cfg.NatsURL, nats.Name("clickhouse-ingest")))
+	js := must(jetstream.New(nc))
+	cons := must(setupStream(ctx, js))
+	ing := &amp;Ingester{conn: conn, cons: cons, maxRows: 50_000, maxWait: time.Second}
+
+	done := make(chan struct{})
+	go func() { ing.Run(ctx); close(done) }()
+
+	&lt;-ctx.Done() // SIGTERM: Run stops fetching after the current batch
+	&lt;-done       // last batch inserted and acked
+	_ = nc.Drain()
+	_ = conn.Close()
+}</code></pre>
+<p class="note">Set the Kubernetes <code>terminationGracePeriodSeconds</code> longer than your fetch wait plus the worst retry time. If a pod is killed anyway, nothing is lost: its unacked messages are redelivered to another pod after <code>AckWait</code>.</p>
+
+<!-- ===================================================== 19 -->
+<h2 id="checklist">19. Checklist</h2>
+<p>Copy this into your service's pull request template.</p>
+<div class="tw"><table>
+<thead><tr><th>Area</th><th>Check</th></tr></thead>
+<tbody>
+<tr><td>Schema</td><td>Sorting key starts with the columns the app filters on; partitions by time for lifecycle; TTL set</td></tr>
+<tr><td>Connection</td><td>One pool per process and user; all replicas listed; TLS; dial and read timeouts</td></tr>
+<tr><td>Writes</td><td>Batched (10k to 100k rows or 1 to 5 s) or <code>async_insert=1, wait=1</code>; explicit column list</td></tr>
+<tr><td>Retries</td><td>Same batch + <code>insert_deduplication_token</code>; exponential backoff with jitter; NATS JetStream holds unacked events during outages; ack only after insert; dead-letter on permanent errors</td></tr>
+<tr><td>Updates</td><td>No mutations in hot paths; ReplacingMergeTree with version; reads use <code>FINAL</code> or <code>argMax</code></td></tr>
+<tr><td>Reads</td><td>Bound <code>{param:Type}</code>; ctx deadline + <code>max_execution_time</code>; <code>max_result_rows</code>; no <code>SELECT *</code></td></tr>
+<tr><td>Dashboards</td><td>Hot aggregations come from MV rollups; queries re-aggregate</td></tr>
+<tr><td>Tenancy</td><td>Tenant from auth only; quota per API user; row policies where SQL is untrusted</td></tr>
+<tr><td>Isolation</td><td>Separate users and settings profiles for ingest, API, ad-hoc</td></tr>
+<tr><td>Caching</td><td>Time ranges rounded; singleflight on hot keys</td></tr>
+<tr><td>Pagination</td><td>Keyset cursors aligned with the sorting key</td></tr>
+<tr><td>Migrations</td><td>Versioned, additive, <code>ON CLUSTER</code>, run once per deploy</td></tr>
+<tr><td>Tests</td><td>Testcontainers with production's ClickHouse version</td></tr>
+<tr><td>Observability</td><td><code>log_comment</code> and logged <code>query_id</code> on every query; alerts on parts, errors, p95</td></tr>
+<tr><td>Shutdown</td><td>Buffer drained before <code>conn.Close()</code>; grace period long enough</td></tr>
+</tbody></table></div>
+<p class="note">Related in this tutorial: lesson 02 (schema design), lesson 03 and <span class="kbd">go-client/cmd/ingest</span> (batch and async ingest with retries), lesson 04 (materialized views), lesson 08 (monitoring), lesson 10 (production checklist).</p>
+
+<h2 id="sources">Sources</h2>
+<p>Checked on 6 October 2026:</p>
+<ul>
+<li><a href="https://clickhouse.com/docs/integrations/go">ClickHouse Go client (clickhouse-go)</a>: connection options, batches, query parameters, context settings, query IDs, OpenTelemetry spans</li>
+<li><a href="https://clickhouse.com/docs/best-practices/selecting-an-insert-strategy">Selecting an insert strategy</a>: batch sizes, async inserts and <code>wait_for_async_insert</code>, why small inserts create too many parts</li>
+<li><a href="https://clickhouse.com/docs/guides/developer/deduplicating-inserts-on-retries">Deduplicating inserts on retries</a>: <code>insert_deduplication_token</code>, deduplication windows, behaviour with materialized views</li>
+</ul>
+</main>
