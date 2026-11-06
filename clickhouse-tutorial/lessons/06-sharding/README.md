@@ -118,8 +118,9 @@ shard weights (new data prefers the new shard), re-inserting into a new table, o
 - When would you write directly to `events_local`?
 
 ## ⚠️ Gotchas
-- A subquery on a distributed table inside `IN`/`JOIN` needs `GLOBAL IN`/`GLOBAL JOIN`, or each shard re-runs it
-  across the whole cluster. Co-locating by the shard key avoids this.
+- A subquery on a distributed table inside `IN`/`JOIN` needs `GLOBAL IN`/`GLOBAL JOIN`. Without it, the default
+  `distributed_product_mode = 'deny'` rejects the query (`DISTRIBUTED_IN_JOIN_SUBQUERY_DENIED`). With `'local'`, each
+  shard joins against only its own rows, which is correct only when both sides are co-located by the shard key.
 - `uniqExact`, big `GROUP BY`s and `ORDER BY … LIMIT` pull data to the initiator. Watch its memory.
 
 ## 🏋️ Exercises

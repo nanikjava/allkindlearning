@@ -40,7 +40,7 @@ For each line: tick it, or write who owns it and by when.
 - [ ] `max_table_size_to_drop` / `max_partition_size_to_drop` guardrails.
 
 ## Operations
-- [ ] Backups: daily full + incremental to S3 in another account, object lock, **automated restore tests** (07).
+- [ ] Backups: weekly full + daily incremental to S3 in another account, object lock, **automated restore tests** (07).
 - [ ] Monitoring: Prometheus alerts from 08, synthetic `health` check, system-log TTLs.
 - [ ] Runbooks from 09 drills; drills repeated quarterly.
 - [ ] Rolling upgrades one replica at a time; stay on **LTS** releases; read the changelog's backward-incompatible

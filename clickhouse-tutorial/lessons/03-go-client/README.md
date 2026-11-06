@@ -131,4 +131,5 @@ ch -q "SELECT query_id, read_rows, query_duration_ms FROM system.query_log
    back-pressure.) How would you make it durable? Hint: Kafka upstream.
 2. Write a program that streams all of shop 1's events to CSV with flat memory. Solution: `go-client/cmd/export`
    (`go run ./cmd/export -tenant 1 -out shop1.csv`). Try it yourself before reading it.
-3. Add an `insert_deduplication_token` per batch so retries are safe on a non-replicated table too.
+3. Add an `insert_deduplication_token` per batch so retries are safe on a non-replicated table too. Plain MergeTree
+   doesn't deduplicate by default: you also need `ALTER TABLE shop.events MODIFY SETTING non_replicated_deduplication_window = 1000`.

@@ -78,7 +78,8 @@ What happens:
 2. `RESTORE TABLE shop.events_local ON CLUSTER prod FROM … 'shop-incr-2'`: pulls base parts from `shop-full-1`
    automatically. Then the same for `events_all`.
 3. `count()` matches the number from Step 4.
-4. A restore **under a new name** (`events_local_restored`) to inspect old data without touching production, then dropped.
+4. A comment explaining why a restore **under a new name** doesn't work on this cluster: the copy would reuse the
+   live table's Keeper path and replica name.
 
 ## Step 6 — Run a backup asynchronously
 Real backups take minutes to hours. Run them in the background and poll:
@@ -166,8 +167,10 @@ restoration process hasn't been tested".
 
 ### 10. Restore surgically, and carefully
 - Restore a single table, or only some partitions (`PARTITIONS '202607'`), instead of the whole database.
-- Restore under a new name (`RESTORE TABLE shop.events_local AS shop.events_restored …`) to inspect before touching
-  production, then copy back only the rows you need with `INSERT … SELECT`.
+- Restore into a scratch cluster (or under a new name, `RESTORE TABLE shop.events_local AS shop.events_restored …`)
+  to inspect before touching production, then copy back only the rows you need with `INSERT … SELECT`. For
+  replicated tables, a new name on the *same* cluster only works if the Keeper path doesn't clash with the live
+  table's; a hard-coded path like ours does clash, so use a scratch cluster with its own Keeper.
 - `allow_non_empty_tables = 1` restores into a table that already has data, but can **duplicate rows**. Use it only
   when you know the restored partitions aren't there.
 

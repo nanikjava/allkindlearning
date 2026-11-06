@@ -1,4 +1,4 @@
-<title>Building Apps on ClickHouse</title>
+t<title>Building Apps on ClickHouse</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono&display=swap">
 <style>
 /* Layout: single reading column like the other-docs explainers; write path amber, read path blue, ClickHouse green, ops purple */
@@ -14,7 +14,7 @@ main{max-width:900px;margin:0 auto;padding-block:40px 80px;padding-inline:16px}
 h1{font-family:var(--display);font-size:2.3rem;line-height:1.15;text-wrap:balance;margin:0 0 .6rem}
 h2{font-family:var(--display);font-size:1.6rem;margin:3rem 0 .8rem;text-wrap:balance;border-top:1px solid var(--line);padding-top:1.6rem}
 h3{font-size:1.15rem;margin:2rem 0 .5rem;color:var(--accent)}
-p,li{max-width:68ch} a{color:var(--accent)}
+a{color:var(--accent)}
 code{font-family:var(--mono);font-size:.85em;background:var(--code);padding:.1em .35em;border-radius:4px;overflow-wrap:anywhere}
 pre{background:var(--code);padding:14px 16px;border-radius:8px;overflow-x:auto;line-height:1.45;font-size:.86rem} pre code{background:none;padding:0;font-size:inherit;overflow-wrap:normal}
 .tw{overflow-x:auto;margin:1rem 0} table{border-collapse:collapse;font-size:.92rem;min-width:640px;width:100%}
@@ -23,6 +23,7 @@ th{color:var(--muted);font-weight:600;font-size:.8rem;letter-spacing:.04em;text-
 td:first-child{font-weight:600}
 .fig{margin:1.4rem 0;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px;overflow-x:auto}
 .fig svg{display:block;width:100%;min-width:640px;height:auto}
+.fignum{color:var(--fg);font-weight:600}
 .fig figcaption{color:var(--muted);font-size:.88rem;margin-top:8px;max-width:none}
 figure{margin:0}
 .eyebrow{color:var(--muted);font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;margin-bottom:0}
@@ -32,7 +33,7 @@ figure{margin:0}
 .rule{border:1px solid var(--line);border-left:4px solid var(--accent);background:var(--panel);border-radius:8px;padding:12px 16px;margin:1rem 0}
 .rule b{display:block;color:var(--accent);font-size:.78rem;letter-spacing:.08em;text-transform:uppercase}
 .rule p{margin:.25rem 0 0;max-width:none}
-.analogy{border-left:3px dashed var(--ops);padding:2px 14px;margin:1rem 0;color:var(--fg)}
+.analogy{border:1px solid var(--line);border-left:4px solid var(--ops);background:var(--ops-bg);border-radius:8px;padding:12px 16px;margin:1rem 0;color:var(--fg)}
 .analogy::before{content:"Picture it: ";font-weight:600;color:var(--ops)}
 .dodont{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin:1.2rem 0}
 .dodont div{border:1px solid var(--line);border-top:4px solid var(--c);background:var(--panel);border-radius:8px;padding:12px 16px;min-width:0}
@@ -67,9 +68,10 @@ the <b>application's</b> point of view. Each section is one practice your servic
 and a Go example using <span class="kbd">clickhouse-go/v2</span> (the same driver as the tutorial's
 <span class="kbd">go-client/</span>). Examples use the tutorial's <span class="kbd">shop.events</span> table.</p>
 
-<div class="analogy">ClickHouse is a freight train, not a taxi. It moves enormous loads very fast, but it hates being
-asked to stop for one passenger at a time. Almost every practice below is a way of loading the train in big, planned
-batches and asking it questions it was built to answer.</div>
+<div class="analogy">ClickHouse is to databases what a GPU is to processors. Each kernel launch has a fixed cost, so a GPU
+is slow when handed one tiny task at a time and enormously fast when handed one large, uniform batch. ClickHouse is
+the same: every <code>INSERT</code> creates a part, every query plans and opens columns, and each pays off only across
+millions of rows. Almost every practice below is a way of sending it fewer, larger operations.</div>
 
 <nav aria-label="Contents"><ul class="toc">
 <li><a href="#arch">1. Reference architecture</a></li>
@@ -101,7 +103,7 @@ batches and asking it questions it was built to answer.</div>
 Raw events land in one table; materialized views keep small rollup tables up to date; the API reads rollups first.</p>
 
 <figure class="fig">
-<svg viewBox="0 0 860 590" role="img" aria-labelledby="f1t">
+<svg viewBox="0 0 860 560" role="img" aria-labelledby="f1t">
 <title id="f1t">Reference architecture: producers feed an ingest service that batches inserts into a ClickHouse cluster; an API service with a cache reads rollup tables; observability and migrations sit alongside</title>
 <defs>
 <marker id="a1w" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" class="ah-w"/></marker>
@@ -113,31 +115,32 @@ Raw events land in one table; materialized views keep small rollup tables up to 
 <text x="20" y="384" class="t-h rt">READ PATH</text>
 
 <!-- producers -->
-<rect x="20" y="70" width="150" height="90" rx="8" class="w"/>
-<text x="34" y="96" class="t-h">Producers</text>
-<text x="34" y="116" class="t-s">web / mobile clients</text>
-<text x="34" y="132" class="t-s">backend services</text>
-<text x="34" y="148" class="t-s">devices, logs</text>
+<rect x="20" y="30" width="140" height="90" rx="8" class="w"/>
+<text x="34" y="56" class="t-h">Producers</text>
+<text x="34" y="76" class="t-s">web / mobile clients</text>
+<text x="34" y="92" class="t-s">backend services</text>
+<text x="34" y="108" class="t-s">devices, logs</text>
 <!-- nats -->
-<rect x="200" y="30" width="180" height="56" rx="8" class="node"/>
-<text x="214" y="52" class="t-h">NATS JetStream</text>
-<text x="214" y="70" class="t-s">stream EVENTS, 3 replicas</text>
+<rect x="200" y="30" width="180" height="90" rx="8" class="node"/>
+<text x="214" y="56" class="t-h">NATS JetStream</text>
+<text x="214" y="76" class="t-s">stream EVENTS</text>
+<text x="214" y="92" class="t-s">3 replicas</text>
 <!-- ingest -->
-<rect x="200" y="110" width="180" height="110" rx="8" class="w"/>
-<text x="214" y="134" class="t-h">Ingest service (Go)</text>
-<text x="214" y="154" class="t-s">fetch 50k msgs or 1 s</text>
-<text x="214" y="170" class="t-s">ack only after INSERT</text>
-<text x="214" y="186" class="t-s">user: ingest_writer</text>
-<text x="214" y="202" class="t-s">backpressure on error 252</text>
-<path d="M170 92 L198 66" class="ln-w" marker-end="url(#a1w)"/>
-<text x="150" y="58" class="t-s">publish</text>
-<path d="M290 88 V108" class="ln-w" marker-end="url(#a1w)"/>
-<text x="296" y="102" class="t-s">pull batches</text>
+<rect x="200" y="140" width="180" height="110" rx="8" class="w"/>
+<text x="214" y="164" class="t-h">Ingest service (Go)</text>
+<text x="214" y="184" class="t-s">fetch 50k msgs or 1 s</text>
+<text x="214" y="200" class="t-s">ack only after INSERT</text>
+<text x="214" y="216" class="t-s">user: ingest_writer</text>
+<text x="214" y="232" class="t-s">backpressure on error 252</text>
+<path d="M160 75 H198" class="ln-w" marker-end="url(#a1w)"/>
+<text x="162" y="68" class="t-s">publish</text>
+<path d="M290 120 V138" class="ln-w" marker-end="url(#a1w)"/>
+<text x="296" y="133" class="t-s">pull batches</text>
 
 <!-- cluster -->
 <rect x="420" y="30" width="420" height="330" rx="12" class="box"/>
 <text x="438" y="54" class="t-h ct">ClickHouse cluster</text>
-<text x="600" y="54" class="t-s">native :9440 TLS, every replica listed in the app</text>
+<text x="640" y="54" class="t-s">native :9440 over TLS</text>
 <rect x="438" y="68" width="190" height="96" rx="8" class="c"/>
 <text x="450" y="88" class="t-h">Shard 1</text>
 <rect x="450" y="98" width="78" height="52" rx="6" class="node"/><text x="460" y="128">replica a</text>
@@ -157,45 +160,47 @@ Raw events land in one table; materialized views keep small rollup tables up to 
 <text x="694" y="226" class="t-s">hourly, per tenant</text>
 <path d="M578 214 H600" class="ln" marker-end="url(#a1)"/>
 <path d="M658 214 H680" class="ln" marker-end="url(#a1)"/>
-<text x="440" y="264" class="t-s">every insert into events also feeds the rollup, so the API rarely scans raw rows</text>
+<text x="440" y="264" class="t-s">each insert into events also updates the rollups</text>
 
 <rect x="438" y="282" width="120" height="58" rx="8" class="o"/><text x="450" y="306" class="t-h">Keeper 1</text><text x="450" y="324" class="t-s">coordination</text>
 <rect x="572" y="282" width="120" height="58" rx="8" class="o"/><text x="584" y="306" class="t-h">Keeper 2</text><text x="584" y="324" class="t-s">no table data</text>
 <rect x="706" y="282" width="120" height="58" rx="8" class="o"/><text x="718" y="306" class="t-h">Keeper 3</text><text x="718" y="324" class="t-s">quorum of 3</text>
 
-<path d="M380 165 H418" class="ln-w" marker-end="url(#a1w)"/>
-<text x="382" y="158" class="t-s">INSERT</text>
+<path d="M380 195 H418" class="ln-w" marker-end="url(#a1w)"/>
+<text x="382" y="188" class="t-s">INSERT</text>
 
 <!-- read path -->
-<rect x="20" y="400" width="150" height="70" rx="8" class="r"/>
-<text x="34" y="426" class="t-h">Dashboards</text>
-<text x="34" y="446" class="t-s">API consumers</text>
-<rect x="200" y="400" width="180" height="110" rx="8" class="r"/>
+<rect x="20" y="400" width="140" height="65" rx="8" class="r"/>
+<text x="34" y="424" class="t-h">Dashboards</text>
+<text x="34" y="444" class="t-s">API consumers</text>
+<rect x="200" y="400" width="180" height="140" rx="8" class="r"/>
 <text x="214" y="424" class="t-h">API service (Go)</text>
-<text x="214" y="444" class="t-s">tenant from auth, never input</text>
-<text x="214" y="460" class="t-s">bound params + timeouts</text>
-<text x="214" y="476" class="t-s">user: api_reader (readonly)</text>
-<text x="214" y="492" class="t-s">reads rollups first</text>
-<rect x="20" y="500" width="150" height="58" rx="8" class="node"/>
-<text x="34" y="524" class="t-h">Cache</text>
-<text x="34" y="542" class="t-s">Redis or in-process</text>
-<path d="M170 435 H198" class="ln-r" marker-end="url(#a1r)"/>
-<path d="M200 520 L172 528" class="ln-r" marker-end="url(#a1r)"/>
-<path d="M380 430 H520 V362" class="ln-r" marker-end="url(#a1r)"/>
-<text x="392" y="422" class="t-s">SELECT with query_id, log_comment</text>
+<text x="214" y="446" class="t-s">tenant from auth, never input</text>
+<text x="214" y="464" class="t-s">bound params + timeouts</text>
+<text x="214" y="482" class="t-s">user: api_reader (readonly)</text>
+<text x="214" y="500" class="t-s">reads rollups first</text>
+<rect x="20" y="475" width="140" height="65" rx="8" class="node"/>
+<text x="34" y="499" class="t-h">Cache</text>
+<text x="34" y="519" class="t-s">Redis or in-process</text>
+<path d="M160 432 H198" class="ln-r" marker-end="url(#a1r)"/>
+<path d="M200 507 H162" class="ln-r" marker-end="url(#a1r)"/>
+<path d="M380 432 H500 V362" class="ln-r" marker-end="url(#a1r)"/>
+<text x="388" y="424" class="t-s">SELECT</text>
+<text x="388" y="452" class="t-s">query_id,</text>
+<text x="388" y="466" class="t-s">log_comment</text>
 
 <!-- ops -->
-<rect x="550" y="400" width="290" height="80" rx="8" class="o"/>
-<text x="564" y="424" class="t-h">Observability</text>
-<text x="564" y="444" class="t-s">system.query_log by log_comment / query_id</text>
-<text x="564" y="460" class="t-s">Prometheus :9363 to Grafana, alerts on parts</text>
+<rect x="550" y="400" width="290" height="65" rx="8" class="o"/>
+<text x="564" y="422" class="t-h">Observability</text>
+<text x="564" y="440" class="t-s">system.query_log by log_comment / query_id</text>
+<text x="564" y="456" class="t-s">Prometheus :9363 to Grafana, alerts on parts</text>
 <path d="M700 362 V398" class="ln-o" marker-end="url(#a1o)"/>
-<rect x="550" y="500" width="290" height="70" rx="8" class="o"/>
-<text x="564" y="524" class="t-h">Migrations job (CI)</text>
-<text x="564" y="544" class="t-s">versioned DDL, ON CLUSTER, runs before deploy</text>
-<path d="M840 535 H852 V250 H828" class="ln-o" marker-end="url(#a1o)"/>
+<rect x="550" y="475" width="290" height="65" rx="8" class="o"/>
+<text x="564" y="499" class="t-h">Migrations job (CI)</text>
+<text x="564" y="519" class="t-s">versioned DDL, ON CLUSTER, runs before deploy</text>
+<path d="M840 507 H852 V214 H842" class="ln-o" marker-end="url(#a1o)"/>
 </svg>
-<figcaption>Write and read paths share the cluster but not users, settings profiles or code. NATS JetStream decouples producers from ClickHouse: events wait safely in the stream during spikes or outages, and several ingest pods share one durable consumer.</figcaption>
+<figcaption><b class="fignum">Figure 1-1.</b> Write and read paths share the cluster but not users, settings profiles or code. NATS JetStream decouples producers from ClickHouse: events wait safely in the stream during spikes or outages, and several ingest pods share one durable consumer.</figcaption>
 </figure>
 
 <div class="tw"><table>
@@ -334,13 +339,13 @@ create parts faster than merges can combine them, ClickHouse first slows inserts
 <rect x="430" y="226" width="90" height="58" rx="6" class="c"/>
 <text x="442" y="252" class="t-h">1 part</text>
 <text x="442" y="270" class="t-s">50k rows</text>
-<path d="M520 256 H600" class="ln" marker-end="url(#a2w)"/>
+<path d="M520 256 H600" class="ln-w" marker-end="url(#a2w)"/>
 <rect x="610" y="220" width="230" height="70" rx="8" class="c"/>
 <text x="622" y="244" class="t-h">merges keep up easily</text>
 <text x="622" y="264" class="t-s">fewer, bigger parts; faster reads</text>
 <text x="622" y="280" class="t-s">same data, 5,000x fewer inserts</text>
 </svg>
-<figcaption>The buffer turns a fire hose of single rows into a steady drip of large inserts. Target roughly one insert per second per table, not thousands.</figcaption>
+<figcaption><b class="fignum">Figure 4-1.</b> The buffer turns a fire hose of single rows into a steady drip of large inserts. Target roughly one insert per second per table, not thousands.</figcaption>
 </figure>
 
 <div class="analogy">Think of a dishwasher. Running it once per spoon is wasteful and the kitchen floods with
@@ -449,7 +454,7 @@ actually written.</p>
 <thead><tr><th>Strategy</th><th>Best when</th><th>Watch out for</th></tr></thead>
 <tbody>
 <tr><td>NATS JetStream + batch consumer (sections 4 and 6)</td><td>You control the producers and must not lose events during spikes or ClickHouse outages</td><td>One more (small) system to run; delivery is at-least-once</td></tr>
-<tr><td>Async insert, wait=1</td><td>Many small writers you cannot coordinate</td><td>Each call waits up to the flush timeout (about 200 ms by default) before it returns</td></tr>
+<tr><td>Async insert, wait=1</td><td>Many small writers you cannot coordinate</td><td>Each call waits up to the flush timeout (adaptive, 50 to 200 ms by default) before it returns</td></tr>
 <tr><td>Async insert, wait=0</td><td>Fire-and-forget telemetry where loss is acceptable</td><td>Errors are invisible to the app; a server crash loses the in-memory buffer</td></tr>
 </tbody></table></div>
 
@@ -488,7 +493,7 @@ func (in *Ingester) sendWithRetry(ctx context.Context, token string, rows []Even
 		backoff = min(backoff*2, 10*time.Second)
 	}
 }</code></pre>
-<p class="note">Deduplication happens in the <code>Replicated*MergeTree</code> tables and keeps the last 100 blocks by default
+<p class="note">Deduplication happens in the <code>Replicated*MergeTree</code> tables and keeps hashes of the last 1,000 blocks by default in 25.8 (10,000 from 25.10)
 (<code>replicated_deduplication_window</code>). Plain <code>MergeTree</code> needs <code>non_replicated_deduplication_window</code>
 set above 0. Through a <code>Distributed</code> table, prefer synchronous distributed inserts
 (<code>distributed_foreground_insert=1</code>) so the retry reaches the same dedup check. In-process retries reuse the exact batch, so they are always deduplicated.
@@ -524,7 +529,7 @@ func setupStream(ctx context.Context, js jetstream.JetStream) (jetstream.Consume
 		AckPolicy:     jetstream.AckExplicitPolicy,
 		AckWait:       2 * time.Minute,           // longer than insert + all in-process retries
 		MaxAckPending: 200_000,                   // must exceed batch size x number of pods
-		MaxDeliver:    20,                        // then the message is dropped; alert on it
+		MaxDeliver:    20,                        // then the consumer stops redelivering it (it stays in the stream); alert on it
 	})
 }
 
@@ -637,16 +642,16 @@ GROUP BY order_id`</code></pre>
 <rect x="150" y="40" width="120" height="80" rx="8" class="r"/><text x="162" y="66" class="t-h">2 Resolve</text><text x="162" y="86" class="t-s">tenant from token</text><text x="162" y="102" class="t-s">validate range</text>
 <rect x="300" y="40" width="110" height="80" rx="8" class="node"/><text x="312" y="66" class="t-h">3 Cache</text><text x="312" y="86" class="t-s">hit: return</text><text x="312" y="102" class="t-s">miss: continue</text>
 <rect x="440" y="40" width="130" height="80" rx="8" class="r"/><text x="452" y="66" class="t-h">4 Build query</text><text x="452" y="86" class="t-s">{param:Type}</text><text x="452" y="102" class="t-s">settings, query_id</text>
-<rect x="600" y="40" width="110" height="80" rx="8" class="c"/><text x="612" y="66" class="t-h">5 ClickHouse</text><text x="612" y="86" class="t-s">api_reader</text><text x="612" y="102" class="t-s">profile limits</text>
+<rect x="600" y="40" width="122" height="80" rx="8" class="c"/><text x="612" y="66" class="t-h">5 ClickHouse</text><text x="612" y="86" class="t-s">api_reader</text><text x="612" y="102" class="t-s">profile limits</text>
 <rect x="740" y="40" width="110" height="80" rx="8" class="r"/><text x="752" y="66" class="t-h">6 Stream</text><text x="752" y="86" class="t-s">rows.Next()</text><text x="752" y="102" class="t-s">fill cache</text>
 <path d="M120 80 H148" class="ln-r" marker-end="url(#a3r)"/><path d="M270 80 H298" class="ln-r" marker-end="url(#a3r)"/>
 <path d="M410 80 H438" class="ln-r" marker-end="url(#a3r)"/><path d="M570 80 H598" class="ln-r" marker-end="url(#a3r)"/>
-<path d="M710 80 H738" class="ln-r" marker-end="url(#a3r)"/>
+<path d="M722 80 H738" class="ln-r" marker-end="url(#a3r)"/>
 <path d="M355 120 V170 H795 V122" class="ln-d" marker-end="url(#a3r)"/>
 <text x="440" y="164" class="t-s">cache hit skips ClickHouse entirely</text>
 <text x="10" y="200" class="t-s">Two timeouts on purpose: the Go context cancels the client wait; max_execution_time stops the work on the server even if the cancel packet is lost.</text>
 </svg>
-<figcaption>Each step either narrows the question or protects the cluster. Steps 2 and 4 are where most production incidents are prevented.</figcaption>
+<figcaption><b class="fignum">Figure 9-1.</b> Each step either narrows the question or protects the cluster. Steps 2 and 4 are where most production incidents are prevented.</figcaption>
 </figure>
 
 <pre><code>type PageStat struct {
@@ -993,7 +998,7 @@ func main() {
 <p class="note">Related in this tutorial: lesson 02 (schema design), lesson 03 and <span class="kbd">go-client/cmd/ingest</span> (batch and async ingest with retries), lesson 04 (materialized views), lesson 08 (monitoring), lesson 10 (production checklist).</p>
 
 <h2 id="sources">Sources</h2>
-<p>Checked on 6 October 2026:</p>
+<p>Checked on 23 October 2026:</p>
 <ul>
 <li><a href="https://clickhouse.com/docs/integrations/go">ClickHouse Go client (clickhouse-go)</a>: connection options, batches, query parameters, context settings, query IDs, OpenTelemetry spans</li>
 <li><a href="https://clickhouse.com/docs/best-practices/selecting-an-insert-strategy">Selecting an insert strategy</a>: batch sizes, async inserts and <code>wait_for_async_insert</code>, why small inserts create too many parts</li>

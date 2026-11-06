@@ -46,8 +46,9 @@ INSERT → part_2 (1k rows)          merge →  part_1_2 (2k rows)
 So what?
 - **Insert in batches** (10k–1M rows, or at most ~1 insert/sec per table). 1000 single-row inserts = 1000
   parts = eventually a `TOO_MANY_PARTS` error.
-- `UPDATE`/`DELETE` rewrite whole parts (they're called **mutations**). They're heavy and asynchronous. Design
-  so you rarely need them.
+- `ALTER TABLE … UPDATE/DELETE` rewrite whole parts (they're called **mutations**). They're heavy and asynchronous.
+  Lightweight `DELETE FROM` (and lightweight updates in 25.x) only mark rows, so they're cheaper, but deleted rows are
+  still physically removed by later merges. Design so you rarely need any of them.
 
 👉 **Remember:** few big inserts, not many small ones.
 
@@ -119,7 +120,7 @@ Answer without scrolling up:
 | Term | Meaning |
 |---|---|
 | part | immutable sorted chunk of a table on disk |
-| granule | 8192 rows; the smallest unit ClickHouse reads |
+| granule | up to 8192 rows (fewer if rows are wide, via adaptive granularity); the smallest unit ClickHouse reads |
 | merge | background combining of parts |
 | mutation | `ALTER … UPDATE/DELETE` that rewrites parts |
 | Keeper | coordination service for replication and `ON CLUSTER` DDL |

@@ -26,7 +26,7 @@ SELECT count() FROM shop.ev_lifecycle;                    -- count is back to th
 -- (ALTER TABLE ... DROP PARTITION 202606 would delete the month for good.)
 
 -- Add retention: rows older than 60 days (relative to now) get deleted during merges
---   toDateTime(event_time)  TTL needs a Date/DateTime; this converts event_time (e.g. DateTime64)
+--   toDateTime(event_time)  optional: TTL accepts Date, Date32, DateTime and DateTime64; this just makes the seconds-level rule explicit
 --   + INTERVAL 60 DAY       a row expires 60 days after its event_time
 --   DELETE                  expired rows are removed (other actions: TO DISK / TO VOLUME, GROUP BY)
 -- The TTL is checked against now(), so what expires depends on when you run this.

@@ -13,11 +13,11 @@ RESTORE TABLE shop.events_all   ON CLUSTER prod FROM Disk('backups', 'shop-incr-
 
 SELECT count() FROM shop.events_all;   -- same number as before
 
--- Restore under a different name to inspect old data without touching production:
-RESTORE TABLE shop.events_local AS shop.events_local_restored ON CLUSTER prod
-FROM Disk('backups', 'shop-full-1');
-SELECT count() FROM clusterAllReplicas('prod', shop.events_local_restored);
-DROP TABLE shop.events_local_restored ON CLUSTER prod SYNC;
+-- Restore under a different name to inspect old data without touching production?
+-- Not on this cluster: the backup keeps the CREATE query, so the copy would get the same
+-- Keeper path ('/clickhouse/tables/{shard}/shop/events_local') and replica name as the live
+-- table and fail with REPLICA_ALREADY_EXISTS. Restore it onto a scratch cluster with its own
+-- Keeper instead (see the README, best practice 10).
 
 -- Restore only one partition:
 -- RESTORE TABLE shop.events_local PARTITIONS '202607' ON CLUSTER prod FROM Disk('backups','shop-full-1')

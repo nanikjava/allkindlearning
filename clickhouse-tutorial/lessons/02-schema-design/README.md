@@ -100,7 +100,7 @@ The table stores the same values three ways each. Read the `on_disk` column:
 | `set(N)` | up to N distinct values | low-cardinality columns that vary between blocks |
 | `bloom_filter` | probabilistic set membership | `=` / `IN` lookups of rare values (IDs, UUIDs, emails) |
 | `ngrambf_v1` / `tokenbf_v1` | bloom filter of substrings / words | `LIKE`, `hasToken` text search |
-| `text` (full-text; earlier versions called it `inverted` / `full_text`) | inverted index of tokens to granules | full-text search on large text columns (newer, check your version) |
+| `text` (full-text; earlier versions called it `inverted` / `full_text`) | inverted index of tokens to granules | full-text search on large text columns (experimental in 25.8: needs `allow_experimental_full_text_index = 1`) |
 | `vector_similarity` | approximate nearest-neighbour graph (HNSW) | vector / embedding similarity search (newer, check your version) |
 
 `GRANULARITY 1` means one summary per granule. A higher value summarizes several granules together, which makes
@@ -126,8 +126,8 @@ many skip indexes, your ORDER BY is probably wrong.
 ## Step 6 — Partitions and TTL
 
 **Partitions.** `PARTITION BY toYYYYMM(event_time)` stores each month's data in separate parts that are never
-merged together. That lets you manage data a month at a time: `DROP`, `DETACH`, `ATTACH`, or `MOVE` a whole
-partition instantly, without rewriting rows. Partitions are a **data management** tool, not a speed tool. Queries
+merged together. That lets you manage data a month at a time: `DROP`, `DETACH` or `ATTACH` a whole partition
+instantly, without rewriting rows, or `MOVE` it to another disk (that one copies the files). Partitions are a **data management** tool, not a speed tool. Queries
 can skip partitions that don't match the filter, but ORDER BY does most of that work already. Too many partitions
 (e.g. one per day for years, or per user) leaves many small parts and slows everything down. Monthly is the usual
 choice.
@@ -139,7 +139,7 @@ in the background during merges, so you don't need cron jobs or manual `DELETE` 
 |---|---|
 | Delete old rows (retention, privacy rules, cost) | `TTL event_time + INTERVAL 60 DAY DELETE` |
 | Move old data to cheaper disks (hot/cold) | `TTL event_time + INTERVAL 30 DAY TO VOLUME 'cold'` |
-| Roll old detail up into summaries | `TTL event_time + INTERVAL 90 DAY GROUP BY tenant_id, toDate(event_time) SET revenue = sum(revenue)` |
+| Roll old detail up into summaries | `TTL event_time + INTERVAL 90 DAY GROUP BY tenant_id SET revenue = sum(revenue)` (the GROUP BY must be a prefix of the primary key) |
 | Clear one column after a while (e.g. raw IP) | `ip String TTL event_time + INTERVAL 7 DAY` |
 
 **How they work together.** With `ttl_only_drop_parts = 1`, TTL removes whole parts once every row in them has

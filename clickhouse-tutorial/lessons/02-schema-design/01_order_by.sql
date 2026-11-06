@@ -9,7 +9,7 @@ DROP TABLE IF EXISTS shop.ev_lowcard_first;
 CREATE TABLE shop.ev_by_time AS shop.events
 ENGINE = MergeTree PARTITION BY toYYYYMM(event_time) ORDER BY event_time;
 
--- B: what lesson 01 used - the column you always filter on first.
+-- B: the column you always filter on first, then time (lesson 01 also had event_type in between).
 CREATE TABLE shop.ev_by_tenant AS shop.events
 ENGINE = MergeTree PARTITION BY toYYYYMM(event_time) ORDER BY (tenant_id, event_time);
 
