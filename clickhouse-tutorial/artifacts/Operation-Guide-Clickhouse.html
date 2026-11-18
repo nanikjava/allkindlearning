@@ -1,0 +1,337 @@
+<title>ClickHouse Operations Guide</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono&display=swap">
+<style>
+/* Same tokens and reading column as partition-sharding-replication.html */
+:root{--bg:#f7f8fa;--fg:#1c2330;--muted:#5b6474;--line:#d9dee7;--accent:#1f6f5c;--panel:#ffffff;--code:#eef1f5;
+--warn:#a8620a;--warn-bg:#fbefdc;--ok:#1f6f5c;--ok-bg:#dcf1ea;--bad:#b23b3b;--bad-bg:#f8e1e1;--step:#2f5fa8;
+--display:"Fraunces",Georgia,serif;--body:"Source Sans 3",system-ui,sans-serif;--mono:"JetBrains Mono",ui-monospace,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#12161d;--fg:#e4e8ef;--muted:#9aa4b4;--line:#2c3440;--accent:#5fc3a6;--panel:#1a2029;--code:#1f2631;
+--warn:#e6a54a;--warn-bg:#3a2a12;--ok:#5fc3a6;--ok-bg:#163a30;--bad:#ec8a8a;--bad-bg:#3d1c1c;--step:#7aa7ec;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#12161d;--fg:#e4e8ef;--muted:#9aa4b4;--line:#2c3440;--accent:#5fc3a6;--panel:#1a2029;--code:#1f2631;
+--warn:#e6a54a;--warn-bg:#3a2a12;--ok:#5fc3a6;--ok-bg:#163a30;--bad:#ec8a8a;--bad-bg:#3d1c1c;--step:#7aa7ec;color-scheme:dark}
+body{background:var(--bg);color:var(--fg);font:17px/1.6 var(--body);margin:0}
+main{max-width:900px;margin:0 auto;padding-block:40px 80px;padding-inline:20px}
+h1{font-family:var(--display);font-size:2.3rem;line-height:1.15;text-wrap:balance;margin:0 0 .6rem}
+h2{font-family:var(--display);font-size:1.6rem;margin:3rem 0 .8rem;text-wrap:balance;border-top:1px solid var(--line);padding-top:1.6rem}
+h3{font-size:1.3rem;margin:2.4rem 0 .6rem;color:var(--accent)}
+#sources h3,#sources+h3{font-size:1.05rem}
+h4{font-size:1.1rem;margin:2rem 0 .5rem}
+p,li{max-width:68ch} a{color:var(--accent)}
+code{font-family:var(--mono);font-size:.85em;background:var(--code);padding:.1em .35em;border-radius:4px;overflow-wrap:anywhere}
+pre{background:var(--code);padding:14px 16px;border-radius:8px;overflow-x:auto;line-height:1.45;font-size:.88rem} pre code{background:none;padding:0;font-size:inherit;overflow-wrap:normal}
+.tw{overflow-x:auto;margin:1rem 0} table{border-collapse:collapse;font-size:.92rem;min-width:640px;width:100%}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:.8rem;letter-spacing:.04em;text-transform:uppercase}
+td:first-child{font-weight:600}
+.eyebrow{color:var(--muted);font-size:.8rem;letter-spacing:.08em;text-transform:uppercase;margin-bottom:0}
+.note{color:var(--muted);font-size:.92rem}
+.kbd{font-family:var(--mono);font-size:.9em;overflow-wrap:anywhere}
+.trio{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin:1.4rem 0}
+.trio div{border:1px solid var(--line);border-top:4px solid var(--c);background:var(--panel);border-radius:8px;padding:14px 16px;min-width:0}
+.trio b{display:block;color:var(--c);font-size:.8rem;letter-spacing:.08em;text-transform:uppercase}
+.trio p{margin:.3rem 0 0;font-size:.95rem}
+.trio .q{font-family:var(--display);font-size:1.15rem;color:var(--fg);margin-top:.2rem}
+.c-step{--c:var(--step)}
+.verdict{border:1px solid var(--line);border-left:5px solid var(--ok);background:var(--ok-bg);border-radius:8px;padding:14px 18px;margin:1.4rem 0}
+.verdict p{margin:.3rem 0}
+.warnbox{border:1px solid var(--line);border-left:5px solid var(--warn);background:var(--warn-bg);border-radius:8px;padding:14px 18px;margin:1.4rem 0}
+.warnbox p{margin:.3rem 0}
+.yes{color:var(--ok);font-weight:600} .no{color:var(--bad);font-weight:600}
+ol.steps{padding-left:1.3rem} ol.steps>li{margin-bottom:1rem}
+nav.contents{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 20px;margin:1.6rem 0}
+nav.contents h2{font-size:1.15rem;margin:0 0 .6rem;border:0;padding:0}
+.toc{font-size:.95rem;margin:0;padding:0;list-style:none}
+.toc a{text-decoration:none} .toc>li{margin-bottom:.5rem} .toc>li>a{font-weight:600}
+.toc ul{list-style:none;padding-left:1.1rem;margin:.25rem 0 0} .toc ul li{margin-bottom:.15rem} .toc ul ul{margin:.15rem 0 .3rem}
+@media (max-width:560px){h1{font-size:1.9rem}}
+</style>
+<main>
+<p class="eyebrow">ClickHouse · artifacts · operations</p>
+<h1>ClickHouse operation and maintenance guide</h1>
+<p>Procedures for running a self-managed ClickHouse server or cluster day to day: keeping disks from filling up, changing
+settings on a live system safely, and recovering when something goes wrong. Each section is a self-contained procedure
+with the background you need, the commands to run, and how to check the result. Where a section uses the tutorial's
+<span class="kbd">prod</span> cluster (2 shards × 2 replicas), the commands are given for it as well.</p>
+
+<nav class="contents" aria-label="Contents"><h2>Contents</h2><ul class="toc">
+<li><a href="#system-log-ttl">1. System log retention (TTL)</a>
+  <ul>
+    <li><a href="#why">1.1 Why this is needed</a></li>
+    <li><a href="#rename">1.2 Why a config change renames the table</a></li>
+    <li><a href="#verify">1.3 What was verified</a></li>
+    <li><a href="#procedure">1.4 Procedure</a>
+      <ul>
+        <li><a href="#check">1.4.1 Check what you have</a></li>
+        <li><a href="#route-new">1.4.2 Route A: config before the first start</a></li>
+        <li><a href="#route-alter">1.4.3 Route B: ALTER plus matching config</a></li>
+        <li><a href="#route-renamed">1.4.4 Route C: merge the renamed table back</a></li>
+      </ul></li>
+    <li><a href="#match">1.5 What counts as matching</a></li>
+    <li><a href="#cluster">1.6 On the tutorial cluster</a></li>
+  </ul></li>
+<li><a href="#sources">Sources</a></li>
+</ul></nav>
+
+<!-- ===================================================== 1 -->
+<h2 id="system-log-ttl">1. System log retention (TTL)</h2>
+<p>How to put a retention limit on system log tables such as <span class="kbd">system.query_log</span>, and end up with
+one table per log instead of a frozen <span class="kbd">query_log_0</span> copy next to it. The procedure in 1.4 covers
+three situations: a new server, an existing table that has not been renamed yet, and a server where the rename already
+happened.</p>
+
+<div class="verdict">
+<p><b>Verified result.</b> For an existing table, a matching config does <b>not</b> trigger the rename. I read the server source and tested it on
+ClickHouse 25.8.1.5101 (the version the tutorial cluster runs): after the <code>ALTER</code> and a restart with the
+matching config, there was still exactly one <span class="kbd">query_log</span> table, holding its old data and the new
+TTL. Two conditions apply: the config file must be in place before any restart, and the TTL in the config must be the
+same expression as the one in the <code>ALTER</code>.</p>
+</div>
+
+<h3 id="why">1.1 Why this is needed</h3>
+<p>On a self-managed server the system log tables (<span class="kbd">query_log</span>, <span class="kbd">part_log</span>,
+<span class="kbd">trace_log</span>, <span class="kbd">metric_log</span> and the rest) have <b>no TTL by default</b>. They grow until
+someone deletes data, which is a common cause of full disks. ClickHouse Cloud is different and keeps them for about 30 days.</p>
+<p>The usual fix is a TTL in the server config, for example in <span class="kbd">config.d/system-logs.xml</span>:</p>
+<pre><code>&lt;clickhouse&gt;
+  &lt;query_log&gt;&lt;ttl&gt;event_date + INTERVAL 30 DAY DELETE&lt;/ttl&gt;&lt;/query_log&gt;
+  &lt;part_log&gt;&lt;ttl&gt;event_date + INTERVAL 14 DAY DELETE&lt;/ttl&gt;&lt;/part_log&gt;
+  &lt;trace_log&gt;&lt;ttl&gt;event_date + INTERVAL 7 DAY DELETE&lt;/ttl&gt;&lt;/trace_log&gt;
+&lt;/clickhouse&gt;</code></pre>
+<p>That works cleanly on a new server, because the table is created with the TTL from the start. On a server whose table
+already exists, it has a side effect that the next section explains.</p>
+
+<!-- ===================================================== 2 -->
+<h3 id="rename">1.2 Why a config change renames the table</h3>
+<p>Every system log builds the <code>CREATE TABLE</code> statement it wants from the config: the default engine, partition
+key and sort key, plus any <code>&lt;ttl&gt;</code>, <code>&lt;partition_by&gt;</code>, <code>&lt;order_by&gt;</code> or
+<code>&lt;settings&gt;</code> you set. Before it writes, it compares that statement with the definition of the table on disk.
+If the two differ in any way, it does not alter the table. It renames the table to <span class="kbd">query_log_0</span>
+(then <span class="kbd">_1</span>, <span class="kbd">_2</span> and so on), creates a new empty one from the config, and logs:</p>
+<pre><code>Existing table system.query_log for system log has obsolete or different structure. Renaming it to query_log_0.</code></pre>
+<p>The rename copies nothing: the old table keeps its files, so a 100&nbsp;GB <span class="kbd">query_log</span> becomes a
+100&nbsp;GB <span class="kbd">query_log_0</span> that is never written again. The config TTL applies only to the new table.
+The space comes back only when you drop the old one.</p>
+<p>Two details from the source decide how to avoid this:</p>
+<ul>
+<li><b>The comparison is on text.</b> Both definitions are formatted to a single line and compared as strings, with the
+table's UUID removed. In current versions the table comment is ignored as well. So a table that was changed with
+<code>ALTER</code> passes the check as long as its formatted definition comes out identical to the one built from the config.</li>
+<li><b>When it checks.</b> The server reads the table's definition the first time each log flushes after the server starts
+(and again right after it creates a new table). It keeps that copy for the rest of the process. An <code>ALTER</code> made
+after that first flush is not compared until the next restart. An <code>ALTER</code> made before it, in the first seconds
+after startup, is compared at once against the config the server loaded.</li>
+</ul>
+<p>The system log section of the config is read only at startup, so editing the file does nothing until a restart.</p>
+
+<!-- ===================================================== 3 -->
+<h3 id="verify">1.3 What was verified</h3>
+<p>Each scenario ran on a single ClickHouse 25.8.1.5101 server with a fresh data directory. "Restart" means a full stop
+and start. TTL in the table column is what <code>system.tables.engine_full</code> showed afterwards.</p>
+<div class="tw"><table>
+<thead><tr><th>Scenario</th><th>Steps</th><th>Tables afterwards</th><th>Renamed?</th></tr></thead>
+<tbody>
+<tr><td>Config only (control)</td><td>Table exists without TTL. Add config TTL, restart.</td><td><span class="kbd">query_log</span> (TTL, empty), <span class="kbd">query_log_0</span> (old data)</td><td class="no">Yes</td></tr>
+<tr><td>ALTER + matching config (route B)</td><td>Restart so the table exists at startup. <code>ALTER … MODIFY TTL event_date + INTERVAL 30 DAY</code>, flush. Add config <code>event_date + INTERVAL 30 DAY DELETE</code>, restart twice.</td><td><span class="kbd">query_log</span> only, with TTL and its old data</td><td class="yes">No</td></tr>
+<tr><td>ALTER, config forgotten</td><td>Restart. <code>ALTER</code> before the first flush. Restart again without config.</td><td><span class="kbd">query_log</span> (no TTL), <span class="kbd">query_log_0</span> (TTL)</td><td class="no">Yes</td></tr>
+<tr><td>ALTER and config differ</td><td><code>ALTER</code> to 30 DAY, config says 1 MONTH, restart.</td><td>A new table each time the definitions differ</td><td class="no">Yes</td></tr>
+<tr><td>Config before first start (route A)</td><td>Empty data directory, config TTL in place, start, restart.</td><td><span class="kbd">query_log</span> only, with TTL</td><td class="yes">No</td></tr>
+<tr><td>Merge back (route C)</td><td>After a rename: <code>ATTACH PARTITION … FROM query_log_0</code>, <code>DROP TABLE query_log_0</code>, restart.</td><td><span class="kbd">query_log</span> only, with old and new rows</td><td class="yes">No</td></tr>
+<tr><td>ALTER after first flush</td><td>Server running, logs already flushed. <code>ALTER</code>, flush several times, no restart.</td><td><span class="kbd">query_log</span> only, with TTL</td><td class="yes">No, until restart</td></tr>
+</tbody></table></div>
+<p>The source check: <span class="kbd">SystemLog::prepareTable</span> in
+<span class="kbd">src/Interpreters/SystemLog.cpp</span>, both in the 25.8 release and on master. The TTL formatter in
+<span class="kbd">src/Parsers/ASTTTLElement.cpp</span> never prints the word <code>DELETE</code> (a source comment says it would
+break compatibility), which is why a config that writes <code>DELETE</code> matches an <code>ALTER</code> that leaves it out.</p>
+
+<!-- ===================================================== 4 -->
+<h3 id="procedure">1.4 Procedure</h3>
+<p>There are three ways to end up with one system log table that has a TTL. Which one you use depends on the state of the
+server. Start with the check in 1.4.1, then follow the route that matches what you find.</p>
+
+<div class="tw"><table>
+<thead><tr><th>What you find</th><th>Route</th><th>Result</th></tr></thead>
+<tbody>
+<tr><td>A new server, or one that has never started</td><td><a href="#route-new">1.4.2 Config before the first start</a></td><td>Table created with the TTL. Nothing to migrate.</td></tr>
+<tr><td>An existing <span class="kbd">query_log</span> without TTL, and no <span class="kbd">query_log_0</span></td><td><a href="#route-alter">1.4.3 ALTER the live table plus matching config</a></td><td>Same table keeps its name and data, old rows are deleted in place.</td></tr>
+<tr><td><span class="kbd">query_log_0</span> (or <span class="kbd">_1</span>, <span class="kbd">_2</span>) already exists</td><td><a href="#route-renamed">1.4.4 Merge the renamed table back</a></td><td>Months you keep are moved back, the old table is dropped.</td></tr>
+</tbody></table></div>
+
+<h4 id="check">1.4.1 Check what you have</h4>
+<p>Note the current TTL (usually none), whether a renamed copy exists, and how much space each month uses:</p>
+<pre><code>SELECT name, engine_full
+FROM system.tables
+WHERE database = 'system' AND name LIKE 'query_log%';
+
+SELECT table, partition, formatReadableSize(sum(bytes_on_disk)) AS size
+FROM system.parts
+WHERE database = 'system' AND table LIKE 'query_log%' AND active
+GROUP BY table, partition ORDER BY table, partition;</code></pre>
+<p>Every route uses the same config file. Set only <code>&lt;ttl&gt;</code> in it: other keys such as
+<code>&lt;partition_by&gt;</code> or <code>&lt;settings&gt;</code> change the table definition as well. Put it in
+<span class="kbd">/etc/clickhouse-server/config.d/system-logs.xml</span> on every node:</p>
+<pre><code>&lt;clickhouse&gt;
+  &lt;query_log&gt;
+    &lt;ttl&gt;event_date + INTERVAL 30 DAY DELETE&lt;/ttl&gt;
+  &lt;/query_log&gt;
+&lt;/clickhouse&gt;</code></pre>
+<p>The server reads this section only at startup, so the file does nothing until the next restart.</p>
+
+<h4 id="route-new">1.4.2 Route A: config before the first start (new servers)</h4>
+<p>This is the cleanest route. The table is created from the config with the TTL already in its definition, so the
+definition never changes and no rename can happen.</p>
+<ol class="steps">
+<li><p><b>Add the config file</b> from 1.4.1 to the server's <span class="kbd">config.d/</span> (or your image or
+configuration management) before the server starts for the first time.</p></li>
+<li><p><b>Start the server and check.</b> After <code>SYSTEM FLUSH LOGS</code>, <span class="kbd">query_log</span> should show
+<code>TTL event_date + toIntervalDay(30)</code> in <code>engine_full</code>, and there should be no
+<span class="kbd">query_log_0</span>. This holds across later restarts as long as the file stays the same.</p></li>
+</ol>
+<p class="note">"First start" means an empty data directory. A server whose data directory already holds the table is an
+existing server, even if the container or VM is new: use route B.</p>
+
+<h4 id="route-alter">1.4.3 Route B: ALTER the live table plus matching config (existing table, no rename yet)</h4>
+<p>Change the TTL on the live table and put the same TTL in the config, so the definitions match at the next restart. The
+order matters: put the config in place first, so that no restart, planned or not, can happen while the table and the
+config disagree.</p>
+
+<div class="trio">
+  <div class="c-step"><b>First</b><p class="q">Add the config file</p><p>Write the TTL into <span class="kbd">config.d/</span>. Do not restart yet.</p></div>
+  <div class="c-step"><b>Then</b><p class="q">ALTER the live table</p><p>Same TTL expression, on every node. Old data is deleted in place.</p></div>
+  <div class="c-step"><b>Last</b><p class="q">Restart and check</p><p>One node first. Confirm there is no <span class="kbd">query_log_0</span>, then the rest.</p></div>
+</div>
+
+<ol class="steps">
+<li><p><b>Add the config file</b> from 1.4.1 on every node, without restarting.</p></li>
+
+<li><p><b>Optional, for a large table: drop the oldest months first.</b> <span class="kbd">query_log</span> is partitioned by
+month by default, so whole months that are already past the window can go instantly instead of being processed by the TTL:</p>
+<pre><code>ALTER TABLE system.query_log DROP PARTITION '202607';
+ALTER TABLE system.query_log DROP PARTITION '202608';</code></pre></li>
+
+<li><p><b>Add the TTL to the live table</b>, with the same expression as the config. Do this on a server that has been running
+for a while rather than seconds after a restart (see <a href="#rename">section 1.2</a>):</p>
+<pre><code>ALTER TABLE system.query_log MODIFY TTL event_date + INTERVAL 30 DAY;</code></pre>
+<p>By default (<code>materialize_ttl_after_modify = 1</code>) this starts a background <code>MATERIALIZE TTL</code> mutation
+that applies the TTL to the existing parts and removes expired rows. You can watch it with:</p>
+<pre><code>SELECT command, is_done, parts_to_do
+FROM system.mutations
+WHERE database = 'system' AND table = 'query_log';</code></pre>
+<p>System tables are local to each server, so run the <code>ALTER</code> on every node.</p></li>
+
+<li><p><b>Restart one node and check it.</b> Then confirm that the table kept its name, its data and the TTL:</p>
+<pre><code>SYSTEM FLUSH LOGS;
+SELECT name, engine_full
+FROM system.tables
+WHERE database = 'system' AND name LIKE 'query_log%';</code></pre>
+<p>You should see one row, <span class="kbd">query_log</span>, with <code>TTL event_date + toIntervalDay(30)</code> in
+<code>engine_full</code>. If you see <span class="kbd">query_log_0</span>, the definitions did not match: compare the
+<code>Old:</code> and <code>New:</code> lines that follow the "Renaming it to" message in the server log (it is logged at
+debug level), fix the config, and clean up with route C before restarting the other nodes.</p></li>
+
+<li><p><b>Restart the remaining nodes</b> one at a time and run the same check on each.</p></li>
+</ol>
+
+<div class="warnbox">
+<p><b>Do not run the ALTER without the config.</b> In testing, an <code>ALTER</code> with no matching config was undone at
+the next restart: the server renamed the altered table to <span class="kbd">query_log_0</span> and created a new one
+without a TTL. The same happens if the <code>ALTER</code> runs in the first seconds after startup, before the first flush.</p>
+</div>
+
+<h4 id="route-renamed">1.4.4 Route C: merge the renamed table back (server already renamed)</h4>
+<p>Here a config change already happened: <span class="kbd">query_log</span> is the new table with the TTL, and the old
+data sits frozen in <span class="kbd">query_log_0</span>. Nothing is lost. Move the months you want to keep into the new
+table, then drop the old one.</p>
+<ol class="steps">
+<li><p><b>Make sure the config file is in place</b> and the server has restarted with it, so the new
+<span class="kbd">query_log</span> already has the TTL (check with the first query in 1.4.1).</p></li>
+
+<li><p><b>List the months in the old table</b> and decide which are still inside the retention window:</p>
+<pre><code>SELECT partition, sum(rows) AS rows, formatReadableSize(sum(bytes_on_disk)) AS size
+FROM system.parts
+WHERE database = 'system' AND table = 'query_log_0' AND active
+GROUP BY partition ORDER BY partition;</code></pre></li>
+
+<li><p><b>Attach the months you keep</b> into the new table:</p>
+<pre><code>ALTER TABLE system.query_log ATTACH PARTITION '202609' FROM system.query_log_0;
+ALTER TABLE system.query_log ATTACH PARTITION '202610' FROM system.query_log_0;</code></pre>
+<p><code>ATTACH PARTITION FROM</code> uses hard links, so it is instant and takes no extra disk. It leaves the source
+table as it was, so the rows are briefly in both tables until the next step. The TTL on the new table then removes
+any attached rows that are older than the window.</p></li>
+
+<li><p><b>Drop the old table</b> to get the disk space back:</p>
+<pre><code>DROP TABLE system.query_log_0;</code></pre>
+<p>If you want to keep nothing, skip step 3 and only do this. To free space gradually instead, drop it a month at a
+time with <code>ALTER TABLE system.query_log_0 DROP PARTITION '202609'</code>.</p></li>
+
+<li><p><b>Repeat for every renamed copy</b> (<span class="kbd">query_log_1</span>, <span class="kbd">query_log_2</span>
+and so on) and on every node, since system tables are local to each server.</p></li>
+</ol>
+<p><code>ATTACH PARTITION FROM</code> needs both tables to have the same columns, partition key and sort key, and refuses
+otherwise. That can happen when the rename was caused by a ClickHouse upgrade that changed the columns. In that case copy
+the rows you want instead, naming the columns the two tables share:</p>
+<pre><code>INSERT INTO system.query_log (event_date, event_time, query_id, query, ...)
+SELECT event_date, event_time, query_id, query, ...
+FROM system.query_log_0
+WHERE event_date &gt;= today() - 30;</code></pre>
+<p class="note">Unlike <code>ATTACH</code>, this copies the data, so it needs free disk space for the rows you keep until the
+old table is dropped.</p>
+
+<p>All three routes work for the other logs too. Use the table's own name in both places, for example
+<code>&lt;part_log&gt;</code> with <code>ALTER TABLE system.part_log</code>. Check each table's TTL column first, since most
+logs use <span class="kbd">event_date</span> but not all of them do.</p>
+
+<!-- ===================================================== 5 -->
+<h3 id="match">1.5 What counts as matching</h3>
+<p>Both sides are parsed and then formatted, so spelling differences that format the same way are fine. Anything that
+formats differently counts as a different table.</p>
+<div class="tw"><table>
+<thead><tr><th>Config <code>&lt;ttl&gt;</code></th><th>ALTER … MODIFY TTL</th><th>Match?</th></tr></thead>
+<tbody>
+<tr><td><code>event_date + INTERVAL 30 DAY DELETE</code></td><td><code>event_date + INTERVAL 30 DAY</code></td><td class="yes">Yes (tested)</td></tr>
+<tr><td><code>event_date + INTERVAL 30 DAY</code></td><td><code>event_date + toIntervalDay(30)</code></td><td class="yes">Yes, both format as <code>toIntervalDay(30)</code></td></tr>
+<tr><td><code>event_date + INTERVAL 1 MONTH DELETE</code></td><td><code>event_date + INTERVAL 30 DAY</code></td><td class="no">No (tested)</td></tr>
+<tr><td><code>event_date + INTERVAL 30 DAY</code></td><td><code>event_time + INTERVAL 30 DAY</code></td><td class="no">No, a different column</td></tr>
+</tbody></table></div>
+<p class="note">A ClickHouse upgrade can also change a log's default columns or engine. That still renames the table, whatever
+TTL you set, and the procedure here does not prevent it.</p>
+
+<!-- ===================================================== 6 -->
+<h3 id="cluster">1.6 On the tutorial cluster</h3>
+<p>The cluster in <span class="kbd">cluster/docker-compose.yml</span> mounts each config file into the containers one by one,
+so a new file needs its own mount line under every ClickHouse service (<span class="kbd">ch-s1r1</span>,
+<span class="kbd">ch-s1r2</span>, <span class="kbd">ch-s2r1</span>, <span class="kbd">ch-s2r2</span>):</p>
+<pre><code>      - ./clickhouse/config.d/system-logs.xml:/etc/clickhouse-server/config.d/system-logs.xml:ro</code></pre>
+<p>A new mount takes effect only when the container is recreated, and recreating it is the restart.</p>
+<p><b>Route A:</b> add the file and the mount lines before the first <code>docker compose up</code>, or after
+<code>docker compose down -v</code>, which deletes the volumes and all data in them.</p>
+<p><b>Route B:</b> in step 1 you write the file and edit the compose file, but you do not run <code>docker compose up</code>
+yet. The <code>ALTER</code> from step 3, on each node:</p>
+<pre><code>for n in ch-s1r1 ch-s1r2 ch-s2r1 ch-s2r2; do
+  docker compose exec -T $n clickhouse-client --password learn \
+    -q "ALTER TABLE system.query_log MODIFY TTL event_date + INTERVAL 30 DAY"
+done</code></pre>
+<p>Then steps 4 and 5, one node at a time:</p>
+<pre><code>docker compose up -d ch-s1r1
+docker compose exec ch-s1r1 clickhouse-client --password learn -q "SYSTEM FLUSH LOGS"
+docker compose exec ch-s1r1 clickhouse-client --password learn \
+  -q "SELECT name, engine_full FROM system.tables WHERE database = 'system' AND name LIKE 'query_log%'"</code></pre>
+<p>Data lives in the named volumes, so recreating a container keeps the table. To check all four nodes at once:</p>
+<pre><code>SELECT hostName() AS host, name, engine_full
+FROM clusterAllReplicas('prod', system.tables)
+WHERE database = 'system' AND name LIKE 'query_log%'
+ORDER BY host, name;</code></pre>
+<p><b>Route C:</b> run the steps on each node, for example
+<code>docker compose exec ch-s1r1 clickhouse-client --password learn</code> and the same for the other three.</p>
+
+<h2 id="sources">Sources</h2>
+<h3>1. System log retention</h3>
+<p>Checked on 19 October 2026:</p>
+<ul>
+<li><a href="https://github.com/ClickHouse/ClickHouse/blob/master/src/Interpreters/SystemLog.cpp">SystemLog.cpp</a> (master, and the v25.8.1.5101-lts tag): <code>prepareTable</code> compares the stored and expected <code>CREATE</code> as one-line text, caches the stored one after the first flush, and renames to <code>_N</code> on a difference</li>
+<li><a href="https://github.com/ClickHouse/ClickHouse/blob/master/src/Parsers/ASTTTLElement.cpp">ASTTTLElement.cpp</a>: the <code>DELETE</code> keyword is never printed when a TTL is formatted</li>
+<li><a href="https://clickhouse.com/docs/operations/server-configuration-parameters/settings#query_log">Server settings: query_log</a>: the <code>ttl</code>, <code>partition_by</code> and <code>engine</code> keys of the system log sections</li>
+<li><a href="https://clickhouse.com/docs/sql-reference/statements/alter/ttl">ALTER TABLE … MODIFY TTL</a> and the <code>materialize_ttl_after_modify</code> setting</li>
+<li><a href="https://clickhouse.com/docs/sql-reference/statements/alter/partition">Manipulating partitions</a>: <code>ATTACH PARTITION FROM</code> and its requirement that both tables have the same structure, partition key and sort key</li>
+<li>Hands-on test on the ClickHouse 25.8.1.5101 official build, with the scenarios in <a href="#verify">section 1.3</a></li>
+</ul>
+</main>
