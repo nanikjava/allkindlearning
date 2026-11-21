@@ -8,6 +8,35 @@ Be able to bring ShopStream's data back after a mistake that replication copies 
 ## ShopStream in this lesson
 You back up the `shop` database, add a new day of traffic, take an incremental backup, then recover from an engineer accidentally dropping the events tables. (Background: [the ShopStream dataset](../../data/README.md).)
 
+## About this lesson
+
+### What this lesson teaches
+Replication protects you from machines failing, not from people making mistakes: a `DROP` or a bad `DELETE` is copied to every replica. This lesson builds the safety net:
+- **Full backup:** back up the `shop` database across the whole cluster.
+- **Incremental backup:** add a day of new traffic, then back up only the new parts.
+- **Look at the files:** see what a backup is on disk.
+- **Disaster and restore:** simulate an engineer dropping the events tables everywhere, restore them, and check that the row count matches.
+- **Background backups:** run a backup with `ASYNC` and poll its status.
+- **Production:** the same statements, pointed at S3.
+- **Best practices:** advice from the ClickHouse docs and Altinity, combined into a complete backup policy for ShopStream.
+
+### Concepts you'll learn
+| Concept | In one line |
+|---|---|
+| Replication ≠ backup | replicas faithfully copy destructive operations |
+| `BACKUP … ON CLUSTER` | each shard writes its data once, coordinated through Keeper |
+| Full vs incremental | `base_backup` copies only parts that are new since the base |
+| Backup chain | an incremental restore still needs its base; never delete a base that is in use |
+| `RESTORE` | bring back a database, a table, a table under a new name, or selected partitions |
+| `ASYNC` + `system.backups` | run long backups in the background and poll for `BACKUP_CREATED` or `BACKUP_FAILED` |
+| Backup destinations | local disk in the lab; S3 / GCS / Azure in production, with credentials kept out of SQL |
+| RPO / RTO | how much data you can afford to lose, and how long a restore may take |
+| Restore testing | a backup you've never restored is a guess, not a backup |
+| Drop guardrails | `max_table_size_to_drop` and RBAC to prevent the accident in the first place |
+
+### Goal of the lesson
+The goal is to be able to recover ShopStream's data after a mistake that replication copied everywhere, and to know how long that recovery takes. By the end you should have done a full round trip (backup, disaster, restore, verify) and be able to write a backup policy for your own project: schedule, destination, retention, monitoring, restore tests and guardrails, all tied to a stated RPO and RTO. Exercise 3, timing the restore and scaling it to your data size, tells you whether your policy meets your recovery target.
+
 ## What you'll learn
 - Why replication is not a backup
 - Full and incremental backups with `BACKUP … ON CLUSTER`

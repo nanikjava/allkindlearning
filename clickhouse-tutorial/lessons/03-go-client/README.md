@@ -8,6 +8,32 @@ Write the Go code ShopStream's ingest and API services would use: efficient, ret
 ## ShopStream in this lesson
 `cmd/ingest` plays the tracking-snippet backend sending live events into `shop.events`; `cmd/query` plays the dashboard API answering question 1 for a shop; `cmd/export` is the "download my data" button. (Background: [the ShopStream dataset](../../data/README.md).)
 
+## About this lesson
+
+### What this lesson teaches
+From the SQL prompt to application code: small Go programs, written with the official `clickhouse-go/v2` driver, that work like ShopStream's real services.
+- **Batch inserts:** buffer events and flush them in large batches, the right way to write.
+- **Bad batching:** insert one row at a time on purpose and watch the parts pile up.
+- **Async inserts:** let the server do the batching when many small writers can't batch themselves.
+- **Safe retries:** resend the exact same batch, so a lost acknowledgement doesn't create duplicates.
+- **Queries:** parameterised SQL, per-query limits, query IDs, struct scanning, and streaming large results with flat memory.
+
+### Concepts you'll learn
+| Concept | In one line |
+|---|---|
+| Connection pool | one `clickhouse.Open` per process, shared by all goroutines; a list of addresses gives failover |
+| Native protocol + LZ4 | the efficient binary protocol, with compression to cut network traffic |
+| Client-side batching | `PrepareBatch → Append → Send`; one `Send` creates one part |
+| `TOO_MANY_PARTS` | the error you get when inserts are too small and merges can't keep up |
+| Async inserts | `async_insert=1`: the server buffers small inserts into one part; `wait_for_async_insert=1` keeps it durable |
+| Idempotent retries | resend the identical block so insert deduplication drops the copy |
+| Server-side parameters | `{name:Type}` placeholders instead of string formatting, so no SQL injection |
+| Query guardrails | `max_execution_time`, `max_memory_usage` and query IDs set per query |
+| Streaming results | `rows.Next()` reads large results without loading them all into memory |
+
+### Goal of the lesson
+The goal is to write ClickHouse client code you'd be comfortable putting in production. Inserts should create a healthy number of parts, survive a server restart without losing or duplicating data, and degrade predictably under back-pressure. Queries should be safe from injection, bounded in time and memory, and traceable in `query_log`. By the end you should be able to choose between client batching and async inserts for a given workload and explain why retrying the *same* batch matters. Lessons 06–09 reuse these programs against the cluster.
+
 ## What you'll learn
 - Connect from Go with `clickhouse-go/v2` (native protocol, connection pool)
 - Insert efficiently: client-side batches vs server-side async inserts

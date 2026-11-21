@@ -8,6 +8,30 @@ Turn everything from Lessons 01–09 into a concrete launch plan for your own pr
 ## ShopStream in this lesson
 You review the decisions made for ShopStream and write down what the equivalent decision is for your project. (Background: [the ShopStream dataset](../../data/README.md).)
 
+## About this lesson
+
+### What this lesson teaches
+No new commands: this lesson collects the decisions from Lessons 01–09 into a checklist for your own system.
+- **Worked example:** ShopStream's filled-in answers (sort key, partitioning, ingestion, rollups, replication, sharding, backups, monitoring, runbooks), each linked to the lesson that justified it.
+- **Readiness checklist:** grouped by area: topology, hardware and OS, schema, ingestion, security and operations.
+- **Capacity estimate:** disk needs worked out from numbers you can measure in `system.parts`.
+- **Where to look back:** each checklist line names the lesson to reread if the reasoning behind it isn't clear.
+
+### Concepts you'll learn
+| Concept | In one line |
+|---|---|
+| Start small, scale on evidence | one shard × 2–3 replicas first; shards only when capacity runs out |
+| Failure-domain layout | replicas and Keepers spread across zones, Keeper on dedicated low-latency nodes |
+| OS and hardware tuning | RAM:disk ratio, SSD/NVMe for hot data, file limits, no swap, merge headroom |
+| Schema hygiene | query-driven `ORDER BY`, coarse partitions, compact types, TTL, versioned migrations |
+| Ingestion safety | large batches or async inserts, a durable queue upstream, idempotent retries |
+| Least privilege | one user per app, no `DROP`/`TRUNCATE` for app users, TLS, quotas and limits |
+| Operational routines | tested backups, alerts, runbooks, repeated drills, rolling LTS upgrades |
+| Capacity planning | rows/day × bytes/row × retention × replicas × 1.3 headroom |
+
+### Goal of the lesson
+The goal is a concrete, owned launch plan for **your** project, not just ShopStream. By the end you should have your own copy of `clickhouse-readiness.md` in your repo, with every line either ticked or assigned to a person with a date, plus a capacity estimate based on your real row sizes. Every line on it should be something you can explain or demonstrate from an earlier lesson. Keep the document and review it before launch and after every major change.
+
 ## What you'll learn
 - How to turn Lessons 01–09 into a plan for **your** project
 

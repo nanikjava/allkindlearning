@@ -8,6 +8,34 @@ Make ShopStream's dashboard stay fast as data grows by precomputing results, and
 ## ShopStream in this lesson
 You build the per-minute rollup behind the live dashboard (questions 1–3), keep shopper profiles up to date (`shop.users`), speed up question 4 with a projection, and answer question 5 with the `shop.tenants` dictionary. (Background: [the ShopStream dataset](../../data/README.md).)
 
+## About this lesson
+
+### What this lesson teaches
+Scanning raw events works at 10 million rows, but a dashboard over billions needs precomputed answers. ClickHouse does that without batch jobs:
+- **Real-time rollup:** a materialized view rolls every insert up into per-minute aggregates. You backfill history once, then watch new minutes appear live while the Go ingester runs.
+- **Counters:** `SummingMergeTree` adds up numbers for rows with the same key.
+- **Changing data:** `ReplacingMergeTree` keeps shopper profiles up to date; you read the latest version with `FINAL` or `argMax`.
+- **Projection:** a second sort order on the same table.
+- **Dictionary:** an in-memory lookup that replaces a JOIN.
+- **Refreshable MV:** a heavy query recomputed on a schedule.
+
+### Concepts you'll learn
+| Concept | In one line |
+|---|---|
+| Materialized view (MV) | an insert trigger: each new block runs through a `SELECT` and lands in a target table |
+| Backfill | MVs only see new inserts, so history must be loaded once with `INSERT … SELECT` |
+| Aggregate states | `-State` functions store partial results; `-Merge` functions finish them at query time |
+| `AggregatingMergeTree` | a target table that merges aggregate states for the same key |
+| `SummingMergeTree` | adds up numeric columns for rows with the same key |
+| `ReplacingMergeTree(version, is_deleted)` | keeps the latest version of a row, so updates and deletes become inserts |
+| `FINAL` vs `argMax` | two ways to read the latest version before merges have run |
+| Projection | a hidden, re-sorted copy of the table that the optimiser uses automatically |
+| Dictionary | a small lookup table kept in memory and read with `dictGet` |
+| Refreshable MV | a view that reruns its whole query on a schedule |
+
+### Goal of the lesson
+The goal is to keep ShopStream's dashboard fast no matter how much raw data piles up, and to handle changing data without `ALTER UPDATE`. By the end you should be able to look at a slow or awkward query and pick the right tool: an MV rollup, a Summing or Replacing table, a projection, a dictionary or a refreshable MV. You should also know the traps: always `GROUP BY` when reading aggregating tables, remember to backfill, and keep the number of MVs per table small because each one slows inserts.
+
 ## What you'll learn
 - Build real-time rollups with materialized views and `AggregatingMergeTree`
 - Model counters with `SummingMergeTree` and updates with `ReplacingMergeTree`

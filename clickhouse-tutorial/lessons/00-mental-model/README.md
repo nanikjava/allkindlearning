@@ -8,6 +8,33 @@ Build an accurate picture of how ClickHouse stores and reads data, so that every
 ## ShopStream in this lesson
 Nothing runs yet. You meet ShopStream and its `shop.events` table on paper, and every example below uses it. (Background: [the ShopStream dataset](../../data/README.md).)
 
+## About this lesson
+
+### What this lesson teaches
+How ClickHouse works inside, before you type any SQL. Five ideas, in order:
+1. Data is stored **by column**, not by row.
+2. Every insert writes an **immutable part** that is **merged** later.
+3. Rows are **sorted by `ORDER BY`** and found through a **sparse index**.
+4. **Partitions** exist to manage data, not to speed up queries.
+5. **Replication** and **sharding** are separate layers, coordinated by **Keeper**.
+
+Each idea ends with a "so what?" that turns it into a practical rule (batch your inserts, put the shop ID first in the sort key). Later lessons apply those rules.
+
+### Concepts you'll learn
+| Concept | In one line |
+|---|---|
+| Columnar storage | each column is its own compressed file, so a query reads only the columns it names |
+| Part | an immutable, sorted chunk of a table that one `INSERT` writes |
+| Merge | background work that combines small parts into bigger ones |
+| Mutation | an `ALTER … UPDATE/DELETE` that rewrites whole parts; heavy, avoid when you can |
+| Sort key (`ORDER BY`) | the order of rows on disk, and the only thing the primary index covers |
+| Granule and sparse index | blocks of about 8192 rows, with one index entry per block, small enough to stay in memory |
+| Partition | a group of parts (usually one month) that you can drop, move or back up as a unit |
+| Replica, shard, Keeper | a copy of the data, a slice of the data, and the service that coordinates replicas |
+
+### Goal of the lesson
+By the end you should be able to predict how ClickHouse behaves before you run anything. Given a query and a table definition, you should be able to say roughly how much data it reads. Given an ingestion pattern, you should be able to say whether it will create too many parts. Given a failure, you should be able to say whether reads, writes or both stop. You've reached the goal when you can answer the self-check without scrolling up. Every later lesson assumes this picture.
+
 ## What you'll learn
 - Why ClickHouse is fast (and when it isn't)
 - What a **part**, **granule** and **merge** are

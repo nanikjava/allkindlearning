@@ -10,6 +10,7 @@ ALTER TABLE shop.events ADD INDEX idx_session session_id TYPE bloom_filter(0.01)
 
 -- MATERIALIZE INDEX is needed only when the table already has data that the index should cover now.
 ALTER TABLE shop.events MATERIALIZE INDEX idx_session SETTINGS mutations_sync = 2;
+EXPLAIN indexes = 1 SELECT count() FROM shop.events WHERE session_id = (SELECT session_id FROM shop.events ORDER BY session_id LIMIT 1 OFFSET 5000000);
 SELECT count() FROM shop.events WHERE session_id = (SELECT session_id FROM shop.events ORDER BY session_id LIMIT 1 OFFSET 5000000) SETTINGS log_comment = 'l02-skip-after';
 
 -- A minmax index on a column whose values are random within each granule is useless:

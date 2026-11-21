@@ -8,6 +8,33 @@ Know ShopStream's cluster is unhealthy before shop owners notice, and have the q
 ## ShopStream in this lesson
 A provisioned Grafana dashboard shows ShopStream's business view (events, revenue, funnel, top shops) next to cluster health, while the Go ingester sends live traffic. (Background: [the ShopStream dataset](../../data/README.md).)
 
+## About this lesson
+
+### What this lesson teaches
+A cluster you can't see is a cluster you can't run. This lesson adds Prometheus and Grafana next to the cluster from Lessons 05–07, with live traffic running.
+- **Raw metrics:** look at what each node exposes, and graph a few in Prometheus.
+- **Dashboard:** a ready-made Grafana dashboard puts ShopStream's business numbers (events, revenue, funnel, top shops) next to cluster health (parts, replication delay, read-only replicas, memory).
+- **Incident queries:** nine queries that ask every node at once through `clusterAllReplicas`.
+- **Alerts:** review the rules that matter, and trigger one by stopping a node.
+- **Health check:** a Go program that reports each node's status and fails through its exit code.
+- **Log retention:** TTLs on system logs so they don't fill the disk.
+
+### Concepts you'll learn
+| Concept | In one line |
+|---|---|
+| Prometheus endpoint | each node publishes metrics on port 9363 for Prometheus to scrape |
+| Metrics, events, async metrics | gauges (`ClickHouseMetrics_*`), counters (`ProfileEvents_*`), background values (`AsyncMetrics_*`) |
+| Key health signals | `ReadonlyReplica`, `ReplicasMaxAbsoluteDelay`, `MaxPartCountForPartition`, disk free |
+| `clusterAllReplicas()` | runs a system-table query on every node and combines the results |
+| Incident queries | replica health, stuck queues, part counts, merges/mutations, slow queries, errors, backlog |
+| Alerts that matter | node down, read-only replica, replication lag, too many parts, distributed queue, disk |
+| Synthetic health check | a probe that connects to each node directly and fails loudly on problems |
+| Readiness endpoint | an HTTP 200/503 that load balancers or Kubernetes can use |
+| System log TTL | `query_log` and friends grow forever unless you cap them |
+
+### Goal of the lesson
+The goal is to know ShopStream's cluster is unhealthy before shop owners notice, and to have the queries ready to find out why. By the end you should have a working dashboard and alert set, a saved copy of `health_queries.sql` as your incident toolkit, and a health check you could wire into CI, cron or a load balancer. You should be able to go from an alert to the system table that explains it, for example from `ReadonlyReplica` to Keeper connectivity, or from `TooManyParts` to the ingestion pattern. Lesson 09 tests all of this under real failures.
+
 ## What you'll learn
 - Scrape ClickHouse metrics with Prometheus and view them in Grafana
 - The system-table queries you'll run in every incident

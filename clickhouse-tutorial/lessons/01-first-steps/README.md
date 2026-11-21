@@ -8,6 +8,30 @@ Run ClickHouse locally, load ShopStream's first 10 million tracking events, and 
 ## ShopStream in this lesson
 You create `shop.events`, the raw tracking table, and answer ShopStream question 1 ("how is my shop doing this week?") for one shop. (Background: [the ShopStream dataset](../../data/README.md).)
 
+## About this lesson
+
+### What this lesson teaches
+The first hands-on lesson: the ideas from Lesson 00 (parts, merges, the sparse index) become things you can measure.
+- **Set up:** start a single ClickHouse server in Docker and connect with the native client and the HTTP interface.
+- **Load:** create the `shop.events` table and load 10 million realistic tracking events.
+- **Inspect storage:** see how big the data is on disk and which columns compress well and which don't.
+- **Watch parts:** count the parts that were written and see merges reduce that number.
+- **Measure a query:** run ShopStream's first real question and use `EXPLAIN` and `system.query_log` to see how much of the table it read.
+
+### Concepts you'll learn
+| Concept | In one line |
+|---|---|
+| `MergeTree` engine | the standard ClickHouse table engine: sorted parts, merged in the background |
+| `LowCardinality(String)` | dictionary-encoded strings for columns with few distinct values |
+| `system.parts` / `system.columns` | system tables that show parts, rows and compressed vs uncompressed size |
+| Compression ratio | why sorted, repetitive columns shrink 100× and random UUIDs barely shrink |
+| `OPTIMIZE … FINAL` | forces a merge; useful for learning, rarely right in production |
+| `EXPLAIN indexes = 1` | shows how many granules the primary index lets a query skip |
+| `read_rows` in `system.query_log` | the number that tells you what a query really cost |
+
+### Goal of the lesson
+The goal is to build one habit: **check `read_rows` for every query you write.** By the end you should have a working ClickHouse with ShopStream data that the next three lessons reuse. You should also be able to explain, with numbers from your own machine, why `WHERE tenant_id = 42` reads tens of thousands of rows while `WHERE country = 'DE'` reads all 10 million. If you can answer the checkpoint questions from what you measured, you're ready for Lesson 02.
+
 ## What you'll learn
 - Start ClickHouse with Docker and connect to it
 - Create a `MergeTree` table and load 10 million rows
@@ -43,6 +67,17 @@ alias ch='docker compose exec clickhouse clickhouse-client --password learn'
 ch -q "SELECT version()"
 ```
 Expected: `25.8.x.x`.
+
+⚠️ **Run `ch` from the `single-node/` directory.** `docker compose` looks for `docker-compose.yml` in the current
+directory. From anywhere else, `ch` fails with:
+```
+no configuration file provided: not found
+```
+Either `cd single-node` first, or define the alias with the full path to the compose file so it works from any directory:
+```bash
+alias ch='docker compose -f ~/GithubProjects/allkindlearning/clickhouse-tutorial/single-node/docker-compose.yml exec clickhouse clickhouse-client --password learn'
+```
+(Change the path if your copy of the tutorial is somewhere else.)
 
 Now open an interactive session:
 ```bash

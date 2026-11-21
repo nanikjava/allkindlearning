@@ -15,6 +15,33 @@ You add `shop.events_all` on top of `events_local`, shard by shop (`tenant_id`),
 | `shop.events_local` | `ReplicatedMergeTree` | yes, one shard's rows on each node | this node's rows |
 | `shop.events_all` | `Distributed` | no | all rows from all shards |
 
+## About this lesson
+
+### What this lesson teaches
+Replication gives you copies; sharding gives you capacity. This lesson adds `shop.events_all`, a `Distributed` table that holds no data but routes reads and writes to `events_local` on each shard.
+- **Load through it:** send 5 million events through `events_all` and check how they split across shards.
+- **Query from anywhere:** run a cluster-wide query from any node.
+- **Shard pruning:** make a single-shop query touch only one shard.
+- **Two ways to write:** through the Distributed table, or straight into the local tables.
+- **Go on the cluster:** point the ingester and query service at all four nodes.
+- **The hard questions:** how to pick a sharding key, what a hot tenant does to it, and whether you need more than one shard at all.
+
+### Concepts you'll learn
+| Concept | In one line |
+|---|---|
+| Two-table pattern | `_local` tables hold the data; a `Distributed` table on top routes queries |
+| `Distributed` engine | sends a query to one replica per shard and merges the results on the initiator |
+| Sharding key | the expression that decides which shard a row goes to, e.g. `cityHash64(tenant_id)` |
+| `_shard_num` | a virtual column showing which shard a row came from |
+| Shard pruning | `optimize_skip_unused_shards` skips shards the `WHERE` rules out |
+| Foreground vs background distributed inserts | wait for delivery, or queue on the initiator in `system.distribution_queue` |
+| Data skew / hot shard | one big tenant can overload the shard it lives on |
+| `GLOBAL IN` / `GLOBAL JOIN` | how subqueries over distributed tables have to be written |
+| No automatic rebalancing | adding a shard doesn't move old data |
+
+### Goal of the lesson
+The goal is to scale ShopStream beyond one machine without slowing down per-shop queries. By the end you should be able to set up the local + Distributed pattern, choose a sharding key that fits your access pattern, and check with `_shard_num` and `query_log` that a tenant query hits only one shard. Just as important, you should be able to argue whether a project needs sharding yet. The usual advice is to start with one shard and two or three replicas, and add shards only when one node's disk or CPU runs out.
+
 ## What you'll learn
 - The two-table pattern: `events_local` (data) + `events_all` (`Distributed`, routing)
 - How to pick a sharding key

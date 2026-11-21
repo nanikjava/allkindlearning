@@ -8,6 +8,41 @@ Build confidence that ShopStream keeps working through real failures by causing 
 ## ShopStream in this lesson
 The Go ingester keeps sending shop events while you kill replicas, Keepers, a shard, a disk and the network. You check what the dashboard and the ingester experience each time. (Background: [the ShopStream dataset](../../data/README.md).)
 
+## About this lesson
+
+### What this lesson teaches
+Break the cluster on purpose while live ShopStream traffic keeps flowing, and see which protections hold and which don't.
+- **Setup:** three terminals: one sends load, one watches the cluster, one breaks things.
+- **Nine drills, roughly from mild to severe:**
+  1. A single replica dies.
+  2. The Keeper leader dies.
+  3. Keeper loses quorum.
+  4. A whole shard goes down.
+  5. A replica loses its disk.
+  6. All Keeper metadata is wiped.
+  7. Someone truncates a table by mistake.
+  8. The network splits.
+  9. A disk fills up (optional).
+- **Take notes:** for each drill, write down what the client saw, what the cluster saw, how long recovery took, and whether any data was lost.
+- **Recover:** with tools from earlier lessons: replication catch-up, `SYSTEM RESTORE REPLICA`, `skip_unavailable_shards`, the distribution queue, and Lesson 07's backups.
+
+### Concepts you'll learn
+| Concept | In one line |
+|---|---|
+| Failure domains | replicas of a shard must not share a rack, zone or disk |
+| Keeper quorum | losing one of three Keepers is fine; losing two makes every replicated table read-only |
+| Read vs write availability | most failures stop writes but leave reads working |
+| Replica re-sync | a node that comes back with an empty disk re-fetches everything when its schema is recreated |
+| `SYSTEM DROP REPLICA` | removes a dead replica's leftover metadata from Keeper |
+| `SYSTEM RESTORE REPLICA` | rebuilds lost Keeper metadata from the parts on disk |
+| Partial answers | `skip_unavailable_shards` returns what it can when a shard is down |
+| No split-brain | only the side of a partition that can reach Keeper accepts writes |
+| Upstream durability | without Kafka (or similar) in front, events produced during a write outage are lost |
+| Runbook | symptom → alert/query that shows it → action → verification |
+
+### Goal of the lesson
+The goal is to trust ShopStream's cluster because you've seen it fail and recover, not because the docs say it will. By the end you should be able to answer, from your own notes, which failures stop writes but not reads, the difference between losing one Keeper and losing two, what brings a wiped replica back, and which failure replication didn't protect you from at all. The real output of the lesson is a set of one-page runbooks, one per failure, that someone else on your team could follow during an incident.
+
 ## What you'll learn
 - What the client and the cluster each see when a replica, Keeper, a shard, a disk or the network fails
 - How to recover from each failure

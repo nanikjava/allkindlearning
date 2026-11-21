@@ -10,6 +10,35 @@ Make ShopStream survive the loss of a server: run Keeper, replicate `shop.events
 
 **Why `_local`?** In Lessons 01–04 there was one server, so `shop.events` held every row. On a cluster, each node has its own copy of the table, and that copy holds only the rows of the node's shard. The `_local` suffix is the usual ClickHouse naming convention for this: the table that stores data on each node. Querying `shop.events_local` returns only the rows on the node you're connected to, not the whole dataset.
 
+## About this lesson
+
+### What this lesson teaches
+From one server to a real cluster: three ClickHouse Keeper nodes and four ClickHouse nodes, arranged as two shards of two replicas.
+- **Read the config:** macros, the cluster definition and the Keeper addresses, so none of it is a mystery.
+- **Create a replicated table:** `shop.events_local` as a `ReplicatedMergeTree` on every node, with one `ON CLUSTER` statement.
+- **Watch replication:** write to one replica and see the rows appear on the other.
+- **Write anywhere:** write to the second replica to see that any replica accepts writes.
+- **Catch up:** pause a replica, load data, and watch it catch up through its replication queue.
+- **Consistency settings:** quorum inserts, `SYNC REPLICA`, and the block deduplication that makes Lesson 03's retries safe.
+- **Look inside Keeper:** what it stores, and what it doesn't.
+
+### Concepts you'll learn
+| Concept | In one line |
+|---|---|
+| ClickHouse Keeper | a Raft-based coordination service (ZooKeeper-compatible) that needs a majority to work |
+| Macros (`{shard}`, `{replica}`) | per-node values that let the same DDL run everywhere |
+| `ON CLUSTER` DDL | a schema change that Keeper distributes to every node |
+| `ReplicatedMergeTree` | a MergeTree that copies parts between replicas sharing the same Keeper path |
+| Keeper path vs replica name | same path = same data; unique replica name = a different copy |
+| Multi-leader writes | any replica accepts inserts; the others fetch the new parts |
+| Replication queue and delay | `system.replication_queue` and `absolute_delay` show how far behind a replica is |
+| `insert_quorum` | wait until N replicas have the data: stronger durability, less availability |
+| `SYSTEM SYNC REPLICA` | wait until this replica has caught up, to read your own writes |
+| Insert deduplication | identical blocks are recognised by hash and written only once |
+
+### Goal of the lesson
+The goal is a ShopStream that keeps serving dashboards and accepting events when one server dies, and a clear idea of what consistency that gives you. By the end you should be able to run and inspect a replicated cluster, explain the Keeper path in a `ReplicatedMergeTree` definition, and decide whether a workload needs `insert_quorum` or is fine with the default asynchronous replication. You should also be able to say exactly what lives in Keeper (metadata) and what doesn't (your data). Lesson 06 builds sharding on top of this cluster.
+
 ## What you'll learn
 - Run a 3-node ClickHouse Keeper ensemble and a 4-node ClickHouse cluster
 - How `macros` and `ON CLUSTER` DDL work

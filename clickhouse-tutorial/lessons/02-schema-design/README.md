@@ -8,6 +8,31 @@ Be able to design a ClickHouse table from a list of queries: pick the sort key, 
 ## ShopStream in this lesson
 You test different layouts of `shop.events` against question 1 (one shop, one week), speed up question 4 (one shopper's session) with an index, and set a retention policy for old tracking data. (Background: [the ShopStream dataset](../../data/README.md).)
 
+## About this lesson
+
+### What this lesson teaches
+How to design a table so the queries you care about are cheap. Each step is an experiment: the same 10 million rows stored in different ways, measuring disk size and `read_rows` each time.
+- **Sort key:** compare three `ORDER BY` choices on the same query, and see why the smallest table can be the slowest.
+- **Types and codecs:** compare how much disk each column takes when stored different ways.
+- **Skip indexes:** add one where it helps (a rare `session_id`) and one where it doesn't (random `duration_ms`).
+- **Lifecycle:** use partitions to detach and reattach a month, and TTL to expire old rows automatically.
+
+### Concepts you'll learn
+| Concept | In one line |
+|---|---|
+| Choosing the sort key | the column in nearly every filter goes first, lower-cardinality filters next, time last |
+| Compression vs pruning trade-off | a key that compresses best is not always the key that skips the most data |
+| Data types | the smallest type that fits, `LowCardinality`, `Enum`, and avoiding needless `Nullable` |
+| Codecs | `Delta`/`DoubleDelta` for timestamps and counters, `T64` for small integers, `ZSTD` as the general choice |
+| Skip (data-skipping) index | a per-granule summary (`bloom_filter`, `minmax`, `set` …) that lets ClickHouse skip granules |
+| `MATERIALIZE INDEX` | builds a newly added index for data that already exists |
+| Partition operations | `DETACH`/`ATTACH`/`DROP PARTITION` are metadata-only and instant |
+| TTL | rules that delete, move or roll up data by age, applied during merges |
+| `ttl_only_drop_parts` | makes TTL drop whole parts instead of rewriting them |
+
+### Goal of the lesson
+The goal is to design a ClickHouse table from a list of queries and back up every choice with a measurement, not a guess. By the end you should be able to take your own project's top queries and write a `CREATE TABLE` with a justified `ORDER BY`, compact types and codecs, any skip indexes it really needs, and a retention policy. You should also know that `ORDER BY` can't be changed in place, so it deserves the most thought. Exercise 3 (your own table) is the real test.
+
 ## What you'll learn
 - How to choose `ORDER BY`, the decision you can't cheaply change later
 - How data types and codecs change disk usage
